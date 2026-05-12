@@ -1,8 +1,17 @@
 {
   "name": "aa-computer",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
+  "author": "WolfHero",
+  "homepage": "https://github.com/WolfHero/aa-computer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WolfHero/aa-computer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WolfHero/aa-computer/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
