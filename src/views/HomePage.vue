@@ -103,11 +103,13 @@ async function onLoad() {
 
 async function onRefresh() {
   refreshing.value = true
+  listLoading.value = true
   try {
     await fetchRooms(true)
   } catch (e: unknown) {
     showToast(e instanceof Error ? e.message : '刷新失败')
   }
+  listLoading.value = false
   refreshing.value = false
 }
 

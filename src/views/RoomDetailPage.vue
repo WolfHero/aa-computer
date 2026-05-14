@@ -4,7 +4,7 @@
       :title="room?.name ?? '账单'"
       :right-actions="[
         { text: '新增', onClick: () => { checkAndShowBillForm() } },
-        { text: '设置', onClick: () => showActionSheet = true },
+        { text: '菜单', onClick: () => showActionSheet = true },
       ]"
     />
 
@@ -27,7 +27,7 @@
         @load="onLoad"
       >
         <div v-for="bill in mergedBills" :key="bill.local_id || bill.id" class="bill-item">
-          <BillCard :bill="bill" :members="members" />
+          <BillCard :bill="bill" :members="members" @click="onBillEdit(bill)" />
         </div>
 
         <div v-if="mergedBills.length === 0 && !listLoading" class="empty-state">
@@ -45,9 +45,12 @@
       v-model:show="showBillForm"
       :room-id="roomId"
       :members="members"
+      :editing-bill="editingBill"
       :creator-name="myMember?.name ?? ''"
       :creator-id="myMember?.id ?? ''"
       @saved="onBillSaved"
+      @delete="onDeleteBill"
+      @closed="editingBill = null"
     />
 
     <RoomSettingsActionSheet
@@ -65,7 +68,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
+import { supabase } from '@/lib/supabaseClient'
 import { useRooms } from '@/composables/useRooms'
 import { useLocalBills } from '@/composables/useLocalBills'
 import { useRemoteBills } from '@/composables/useRemoteBills'
@@ -82,7 +86,7 @@ const route = useRoute()
 const router = useRouter()
 const roomId = computed(() => route.params.id as string)
 const { getRoomById } = useRooms()
-const { getBills, getUnsyncedBills, mergeFetchedBills } = useLocalBills()
+const { getBills, getUnsyncedBills, syncBillsFromServer, mergeFetchedBills, deleteBill } = useLocalBills()
 const { submitBills, markForNextBill, checkUnsubmittedMembers, fetchBills } = useRemoteBills()
 const { userId } = useAuth()
 
@@ -107,6 +111,9 @@ const filters = ref<BillFilterType>({ content: '', creator_id: null, paid_at_sta
 const showBillForm = ref(false)
 const showActionSheet = ref(false)
 const hasSubmittedBefore = ref(false)
+
+// Bill edit/delete
+const editingBill = ref<Bill | null>(null)
 
 function loadRoomVersion(): number {
   try {
@@ -166,8 +173,9 @@ async function loadRoom() {
     myMember.value = room.value.members.find(m => m.user_id === userId.value) ?? null
     members.value = room.value.members.map(m => ({ id: m.id, name: m.name }))
     roomExpired.value = false
-  } catch {
+  } catch (e) {
     roomExpired.value = true
+    console.error('加载房间失败', e)
     showToast('无权限访问')
     router.replace('/')
   }
@@ -200,9 +208,16 @@ async function loadRemoteBills(refresh = false) {
     } else {
       syncedBills.value = [...(syncedBills.value ?? []), ...data]
     }
-    mergeFetchedBills(roomId.value, data)
+    // Full refresh with no filters: replace cached synced data
+    // Otherwise: merge new data into cache (additive, for pagination/filters)
+    if (refresh && !filters.value.content && !filters.value.creator_id) {
+      syncBillsFromServer(roomId.value, data)
+    } else {
+      mergeFetchedBills(roomId.value, data)
+    }
     remotePage.value++
   } catch (e: unknown) {
+    console.error('加载账单失败', e)
     showToast(e instanceof Error ? e.message : '加载失败')
   }
   listLoading.value = false
@@ -231,18 +246,62 @@ async function checkAndShowBillForm() {
       // ignore mark errors
     }
   }
+  editingBill.value = null
   showBillForm.value = true
 }
 
-function onBillSaved() {
+function onBillEdit(bill: Bill) {
+  editingBill.value = bill
+  showBillForm.value = true
+}
+
+async function onDeleteBill() {
+  const bill = editingBill.value
+  if (!bill) return
+  showBillForm.value = false
+
+  try {
+    await showConfirmDialog({
+      title: '删除账单',
+      message: `确定删除「${bill.content}」吗？`,
+      confirmButtonColor: '#ee0a24',
+    })
+  } catch {
+    return
+  }
+
+  if (bill.id) {
+    // Synced bill: delete from DB + version increment (transactional)
+    const { error } = await supabase.rpc('delete_bill', {
+      p_bill_id: bill.id,
+      p_room_id: roomId.value,
+    })
+    if (error) throw error
+  }
+  deleteBill(roomId.value, bill.local_id)
+  onBillSaved()
+}
+
+async function onBillSaved() {
   hasSubmittedBefore.value = true
-  lastBillsVersion.value = -1
-  loadRemoteBills(true)
+  await loadRemoteBills(true)
+  await saveCurrentRoomVersion()
 }
 
 async function onBillsSubmitted() {
   hasSubmittedBefore.value = true
   await loadRemoteBills(true)
+  await saveCurrentRoomVersion()
+}
+
+async function saveCurrentRoomVersion() {
+  try {
+    const refreshed = await getRoomById(roomId.value)
+    lastBillsVersion.value = refreshed.version
+    saveRoomVersion(refreshed.version)
+  } catch (e) {
+    console.error('更新房间版本号失败', e)
+  }
 }
 
 async function onCalculateAA() {
@@ -267,9 +326,9 @@ async function onCalculateAA() {
 
 async function onRefresh() {
   refreshing.value = true
-  lastBillsVersion.value = -1
   await loadRoom()
   await loadRemoteBills(true)
+  await saveCurrentRoomVersion()
   refreshing.value = false
 }
 
@@ -283,9 +342,9 @@ onMounted(async () => {
   await loadRoom()
   if (!roomExpired.value && room.value) {
     if (room.value.version !== lastBillsVersion.value) {
+      await loadRemoteBills(true)
       lastBillsVersion.value = room.value.version
       saveRoomVersion(room.value.version)
-      await loadRemoteBills(true)
     } else {
       // Version unchanged, load from localStorage cache
       syncedBills.value = getBills(roomId.value)

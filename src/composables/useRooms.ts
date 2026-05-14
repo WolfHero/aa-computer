@@ -93,9 +93,10 @@ export function useRooms() {
       .from('rooms')
       .select(`
         *,
-        members:room_members(id, name, user_id, is_unsubmitted)
+        members:room_members(id, name, user_id, is_unsubmitted, created_at)
       `)
       .eq('id', roomId)
+      .order('created_at', { foreignTable: 'members', ascending: true })
       .single()
 
     if (error) throw error

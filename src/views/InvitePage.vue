@@ -1,8 +1,13 @@
 <template>
   <div class="invite-page">
-    <AppNavBar title="加入房间" />
+    <AppNavBar title="加入房间" :show-back="false" />
 
     <div class="page-content">
+      <div v-if="room" class="room-info">
+        <h2 class="room-name">{{ room.name }}</h2>
+        <p class="room-creator">创建人：{{ room.creator_name }}</p>
+      </div>
+
       <van-form @submit="onSubmit">
         <van-cell-group inset>
           <van-field
@@ -24,17 +29,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import { supabase } from '@/lib/supabaseClient'
 import { useRooms } from '@/composables/useRooms'
 import AppNavBar from '@/components/AppNavBar.vue'
 
+interface RoomInfo {
+  name: string
+  description: string
+  creator_name: string
+  member_names: string[]
+}
+
 const route = useRoute()
 const router = useRouter()
-const { joinRoom, getRoomById } = useRooms()
+const { joinRoom } = useRooms()
 const name = ref('')
 const submitting = ref(false)
+const room = ref<RoomInfo | null>(null)
+
+onMounted(async () => {
+  const roomId = route.query.room_id as string
+  if (!roomId) return
+  const { data } = await supabase.rpc('get_room_info', { p_room_id: roomId })
+  if (data) {
+    room.value = data as unknown as RoomInfo
+  }
+})
 
 async function onSubmit() {
   const roomId = route.query.room_id as string
@@ -45,8 +68,7 @@ async function onSubmit() {
 
   submitting.value = true
   try {
-    const room = await getRoomById(roomId)
-    if (room.members.some(m => m.name === name.value.trim())) {
+    if (room.value?.member_names.includes(name.value.trim())) {
       showToast('该房间已存在同名用户')
       submitting.value = false
       return
@@ -72,5 +94,20 @@ async function onSubmit() {
 .invite-page {
   min-height: 100vh;
   background: var(--color-bg);
+}
+.room-info {
+  text-align: center;
+  padding: 40px 16px 24px;
+}
+.room-name {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.room-creator {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
 }
 </style>

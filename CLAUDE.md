@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+开发完成后不要直接运行dev server和supabase，应先请求接口判断dev server和supabase是否已在运行中。
+
 ## Commands
 
 - `pnpm dev` — Start Vite dev server

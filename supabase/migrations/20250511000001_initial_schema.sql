@@ -116,9 +116,8 @@ create policy "aa_results_insert" on aa_results
 
 create policy "aa_results_update" on aa_results
   for update using (is_member_of_room(room_id));
-  );
 
--- 4. calculate_aa function
+-- 5. calculate_aa function
 create or replace function calculate_aa(p_room_id uuid)
 returns jsonb
 language plpgsql

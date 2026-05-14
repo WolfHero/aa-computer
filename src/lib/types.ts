@@ -66,7 +66,7 @@ export interface AAResult {
 }
 
 export interface RoomWithMembers extends Room {
-  members: Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted'>[]
+  members: Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted' | 'created_at'>[]
 }
 
 export interface BillFilter {

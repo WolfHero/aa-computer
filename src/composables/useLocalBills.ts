@@ -95,6 +95,17 @@ export function useLocalBills() {
     persist()
   }
 
+  /** Replace cached synced bills with fresh server data, preserving unsynced local bills */
+  function syncBillsFromServer(roomId: string, serverBills: any[]) {
+    const localBills = store[roomId] ?? []
+    const unsynced = localBills.filter(b => !b.synced)
+    store[roomId] = [
+      ...unsynced,
+      ...serverBills.map(b => ({ ...b, local_id: b.id, synced: true })),
+    ]
+    persist()
+  }
+
   function clearRoom(roomId: string) {
     delete store[roomId]
     persist()
@@ -107,6 +118,6 @@ export function useLocalBills() {
 
   return {
     getBills, addBill, updateBill, deleteBill,
-    getUnsyncedBills, markAsSynced, mergeFetchedBills, clearRoom, getLocalBillCount,
+    getUnsyncedBills, markAsSynced, mergeFetchedBills, syncBillsFromServer, clearRoom, getLocalBillCount,
   }
 }

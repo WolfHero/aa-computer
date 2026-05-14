@@ -19,6 +19,7 @@ import {
   Icon,
   Switch,
   DatePicker,
+  TimePicker,
   Picker,
   BackTop,
   setToastDefaultOptions,
@@ -47,6 +48,7 @@ app.use(CheckboxGroup)
 app.use(Icon)
 app.use(Switch)
 app.use(DatePicker)
+app.use(TimePicker)
 app.use(Picker)
 app.use(BackTop)
 

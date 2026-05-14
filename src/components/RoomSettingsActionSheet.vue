@@ -40,18 +40,29 @@ const { submitBills } = useRemoteBills()
 
 const actions = computed(() => {
   const list = [
+    { name: '复制房间邀请链接', key: 'copy-invite' },
     { name: '计算AA', key: 'aa' },
     { name: props.sortMode === 'created_at' ? '切换为按付款时间排序' : '切换为按创建时间排序', key: 'sort' },
   ]
-  if (!props.roomExpired) {
-    list.push({ name: '提交付账记录', key: 'submit' })
-  }
+  // if (!props.roomExpired) {
+  //   list.push({ name: '强制提交付账记录', key: 'submit' })
+  // }
   list.push({ name: '房间设置', key: 'settings' })
   return list
 })
 
 async function onSelect(action: { key: string }) {
   switch (action.key) {
+    case 'copy-invite': {
+      const url = `${window.location.origin}/invite?room_id=${props.roomId}`
+      try {
+        await navigator.clipboard.writeText(url)
+        showToast('邀请链接已复制')
+      } catch {
+        showToast('复制失败')
+      }
+      break
+    }
     case 'aa':
       emit('calculate-aa')
       break
