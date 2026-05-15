@@ -90,8 +90,9 @@ const { getBills, getUnsyncedBills, syncBillsFromServer, mergeFetchedBills, dele
 const { submitBills, markForNextBill, checkUnsubmittedMembers, fetchBills } = useRemoteBills()
 const { userId } = useAuth()
 
+type MemberInfo = { id: string; name: string; user_id: string; is_unsubmitted: boolean; created_at: string }
 const room = ref<RoomWithMembers | null>(null)
-const myMember = ref<RoomMember | null>(null)
+const myMember = ref<MemberInfo | null>(null)
 const roomExpired = ref(false)
 const members = ref<Pick<RoomMember, 'id' | 'name'>[]>([])
 

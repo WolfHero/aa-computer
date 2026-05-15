@@ -64,10 +64,11 @@ const { getBills } = useLocalBills()
 
 const BILL_PAGE_SIZE = 10
 
+type MemberInfo = { id: string; name: string; user_id: string; is_unsubmitted: boolean; created_at: string }
 const loading = ref(true)
 const aaResult = ref<AAResult | null>(null)
 const room = ref<RoomWithMembers | null>(null)
-const myMember = ref<RoomMember | null>(null)
+const myMember = ref<MemberInfo | null>(null)
 const members = ref<Pick<RoomMember, 'id' | 'name'>[]>([])
 const relatedBills = ref<Bill[]>([])
 const includeSelfPay = ref(true)
@@ -150,8 +151,9 @@ async function loadRelatedBills(refresh = false) {
   billPage++
 
   // Merge with local unsynced bills
+  const memberId = myMember.value.id
   let local = getBills(roomId).filter(
-    b => !b.synced && (b.shared_by.includes(myMember.value.id) || b.created_by === myMember.value.id)
+    b => !b.synced && (b.shared_by.includes(memberId) || b.created_by === memberId)
     && (includeSelfPay.value || !isSelfPayBill(b))
   )
   relatedBills.value = [...local, ...allSyncedBills]

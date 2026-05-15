@@ -16,10 +16,7 @@
             label="你的名字"
             placeholder="请输入你的名字"
             maxlength="20"
-            :rules="[
-              { required: true, message: '请输入你的名字' },
-              { max: 20, message: '名字不能超过20个字符' },
-            ]"
+            :rules="[{ required: true, message: '请输入你的名字' }]"
           />
         </van-cell-group>
         <div style="margin: 32px 16px">

@@ -39,7 +39,7 @@
         <div class="date-range-header">选择付款时间范围</div>
         <div class="date-range-fields">
           <van-field
-            :model-value="filters.paid_at_start"
+            :model-value="filters.paid_at_start ?? ''"
             is-link
             readonly
             placeholder="开始日期"
@@ -47,7 +47,7 @@
           />
           <span class="date-sep">至</span>
           <van-field
-            :model-value="filters.paid_at_end"
+            :model-value="filters.paid_at_end ?? ''"
             is-link
             readonly
             placeholder="结束日期"
@@ -113,7 +113,7 @@ const todayDate = [
 ]
 
 const creatorOptions = computed(() => [
-  { text: '全部', value: null as string | null },
+  { text: '全部', value: '' },
   ...props.members.map(m => ({ text: m.name, value: m.id })),
 ])
 
@@ -129,7 +129,7 @@ const dateRangeText = computed(() => {
 })
 
 function onCreatorConfirm({ selectedOptions }: { selectedOptions: Array<{ text: string; value: string | null }> }) {
-  filters.creator_id = selectedOptions[0]?.value ?? null
+  filters.creator_id = selectedOptions[0]?.value || null
   showCreatorPicker.value = false
   emit('update', { ...filters })
 }

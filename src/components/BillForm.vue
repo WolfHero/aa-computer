@@ -173,8 +173,6 @@ const showDatePicker = ref(false)
 const showTimePicker = ref(false)
 const formRef = ref()
 
-const defaultSharedBy = ref<string[]>([])
-
 const todayStr = new Date().toISOString().slice(0, 10)
 const defaultTime = '08:00'
 const datePickerValue = computed(() => {

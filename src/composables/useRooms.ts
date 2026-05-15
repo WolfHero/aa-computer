@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
 import { useAuth } from './useAuth'
 import { ROOM_PAGE_SIZE } from '@/utils/constants'
-import type { Room, RoomMember, RoomWithMembers } from '@/lib/types'
+import type { RoomMember, RoomWithMembers } from '@/lib/types'
 
 export function useRooms() {
   const { userId } = useAuth()
