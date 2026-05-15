@@ -34,6 +34,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { supabase } from '@/lib/supabaseClient'
+import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
 import AppNavBar from '@/components/AppNavBar.vue'
 
@@ -47,6 +48,7 @@ interface RoomInfo {
 const route = useRoute()
 const router = useRouter()
 const { joinRoom } = useRooms()
+const { ensureAuth } = useAuth()
 const name = ref('')
 const submitting = ref(false)
 const room = ref<RoomInfo | null>(null)
@@ -69,6 +71,7 @@ async function onSubmit() {
 
   submitting.value = true
   try {
+    await ensureAuth()
     if (room.value?.member_names.includes(name.value.trim())) {
       showToast('该房间已存在同名用户')
       submitting.value = false

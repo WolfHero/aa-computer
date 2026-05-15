@@ -2,6 +2,7 @@
   <div class="room-detail">
     <AppNavBar
       :title="room?.name ?? '账单'"
+      back-to="/"
       :right-actions="[
         { text: '新增', onClick: () => { checkAndShowBillForm() } },
         { text: '菜单', onClick: () => showActionSheet = true },

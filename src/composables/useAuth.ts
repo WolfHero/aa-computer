@@ -9,10 +9,6 @@ export function useAuth() {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
       userId.value = session.user.id
-    } else {
-      const { data, error } = await supabase.auth.signInAnonymously()
-      if (error) throw error
-      userId.value = data.user!.id
     }
 
     supabase.auth.onAuthStateChange((_event, session) => {
@@ -26,5 +22,23 @@ export function useAuth() {
     initialized.value = true
   }
 
-  return { userId, initialized, initAuth }
+  async function ensureAuth() {
+    if (userId.value) return
+    const { data, error } = await supabase.auth.signInAnonymously()
+    if (error) throw error
+    userId.value = data.user!.id
+  }
+
+  async function getRefreshToken(): Promise<string | null> {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.refresh_token ?? null
+  }
+
+  async function refreshSession(token: string) {
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token: token })
+    if (error) throw error
+    userId.value = data.user!.id
+  }
+
+  return { userId, initialized, initAuth, ensureAuth, getRefreshToken, refreshSession }
 }

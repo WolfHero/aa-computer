@@ -26,6 +26,7 @@ interface NavAction {
 const props = withDefaults(defineProps<{
   title: string
   showBack?: boolean
+  backTo?: string
   rightActions?: NavAction[]
 }>(), {
   showBack: true,
@@ -35,7 +36,10 @@ const props = withDefaults(defineProps<{
 const router = useRouter()
 
 function onClickLeft() {
-  if (props.showBack) {
+  if (!props.showBack) return
+  if (props.backTo) {
+    router.replace(props.backTo)
+  } else {
     router.back()
   }
 }
