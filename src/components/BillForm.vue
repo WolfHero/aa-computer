@@ -25,7 +25,7 @@
         name="amount"
         label="付款金额"
         placeholder="请输入金额"
-        type="digit"
+        type="number"
         maxlength="13"
         :rules="[
           { required: true, message: '请输入金额' },
