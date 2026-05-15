@@ -31,7 +31,7 @@
         v-model="form.creatorName"
         name="creatorName"
         label="昵称"
-        placeholder="请输入昵称，别人会看到这个代号"
+        placeholder="请输入昵称"
         maxlength="20"
         autocomplete="off"
         :rules="[{ required: true, message: '请输入昵称，别人会看到这个代号' }]"

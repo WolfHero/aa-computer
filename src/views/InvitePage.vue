@@ -14,7 +14,7 @@
             v-model="name"
             name="name"
             label="昵称"
-            placeholder="请输入昵称，别人会看到这个代号"
+            placeholder="请输入昵称"
             maxlength="20"
             :rules="[{ required: true, message: '请输入昵称，别人会看到这个代号' }]"
           />
