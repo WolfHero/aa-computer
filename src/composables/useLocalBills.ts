@@ -46,7 +46,7 @@ export function useLocalBills() {
     if (!bills) return
     const idx = bills.findIndex(b => b.local_id === localId)
     if (idx === -1) return
-    bills[idx] = { ...bills[idx], ...updates }
+    bills[idx] = { ...bills[idx], ...updates } as Bill
     persist()
   }
 

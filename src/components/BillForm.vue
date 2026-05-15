@@ -14,7 +14,11 @@
         name="content"
         label="付款内容"
         placeholder="请输入付款内容"
-        :rules="[{ required: true, message: '请输入付款内容' }]"
+        maxlength="80"
+        :rules="[
+          { required: true, message: '请输入付款内容' },
+          { validator: validateContent, message: '付款内容过长（汉字40字/字母80字）' },
+        ]"
       />
       <van-field
         v-model="form.amount"
@@ -22,7 +26,11 @@
         label="付款金额"
         placeholder="请输入金额"
         type="digit"
-        :rules="[{ required: true, message: '请输入金额' }]"
+        maxlength="13"
+        :rules="[
+          { required: true, message: '请输入金额' },
+          { pattern: /^\d{1,10}(\.\d{1,2})?$/, message: '金额格式不正确（最多10位整数+2位小数）' },
+        ]"
       />
       <van-field
         name="paidDate"
@@ -46,7 +54,11 @@
         @click-input="showTimePicker = true"
         @click-right-icon="showTimePicker = true"
       />
-      <van-field name="sharedBy" label="分摊人员">
+      <van-field
+        name="sharedBy"
+        label="分摊人员"
+        :rules="[{ required: true, message: '请选择分摊人员', validator: () => form.sharedBy.length > 0 }]"
+      >
         <template #input>
           <van-checkbox-group
             v-if="members.length > 0"
@@ -117,6 +129,19 @@ import { supabase } from '@/lib/supabaseClient'
 import { useLocalBills } from '@/composables/useLocalBills'
 import { useRemoteBills } from '@/composables/useRemoteBills'
 import type { Bill, RoomMember } from '@/lib/types'
+
+function calcCharUnits(str: string): number {
+  let units = 0
+  for (const ch of str) {
+    const code = ch.codePointAt(0) ?? 0
+    units += code <= 0x007E || (code >= 0xff61 && code <= 0xff9f) ? 0.5 : 1
+  }
+  return units
+}
+
+function validateContent(val: string) {
+  return calcCharUnits(val) <= 40
+}
 
 const props = withDefaults(defineProps<{
   show?: boolean
@@ -215,6 +240,12 @@ function onDelete() {
 }
 
 async function onSubmit() {
+  try {
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
+
   submitting.value = true
   try {
     await saveBill()
@@ -237,6 +268,7 @@ async function onSaveAndContinue() {
     await saveBill()
     showToast('已保存')
     form.content = ''
+    form.amount = ''
     emit('saved')
   } finally {
     submitting.value = false

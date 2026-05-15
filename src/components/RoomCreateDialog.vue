@@ -13,7 +13,11 @@
         name="name"
         label="房间名称"
         placeholder="请输入房间名称"
-        :rules="[{ required: true, message: '请输入房间名称' }]"
+        maxlength="20"
+        :rules="[
+          { required: true, message: '请输入房间名称' },
+          { max: 20, message: '房间名称不能超过20个字符' },
+        ]"
       />
       <van-field
         v-model="form.description"
@@ -29,7 +33,11 @@
         name="creatorName"
         label="你的名字"
         placeholder="请输入你的名字"
-        :rules="[{ required: true, message: '请输入你的名字' }]"
+        maxlength="20"
+        :rules="[
+          { required: true, message: '请输入你的名字' },
+          { max: 20, message: '名字不能超过20个字符' },
+        ]"
       />
       <div style="margin: 16px">
         <van-button round block type="primary" native-type="submit" :loading="submitting">
