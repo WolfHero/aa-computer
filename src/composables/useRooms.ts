@@ -14,6 +14,10 @@ export function useRooms() {
   let cachedUserRoomIds: string[] | null = null
 
   async function fetchRooms(refresh = false) {
+    if (!userId.value) {
+      finished.value = true
+      return
+    }
     if (refresh) {
       page.value = 0
       finished.value = false
