@@ -80,11 +80,11 @@ async function onSubmit() {
 
     await joinRoom(roomId, name.value.trim())
     showToast('加入成功')
-    router.replace(`/room/${roomId}`)
+    router.replace({ path: `/room/${roomId}`, state: { roomName: room.value?.name ?? '' } })
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'code' in e && (e as any).code === '23505') {
       showToast('已在房间中')
-      router.replace(`/room/${roomId}`)
+      router.replace({ path: `/room/${roomId}`, state: { roomName: room.value?.name ?? '' } })
     } else {
       showToast(e instanceof Error ? e.message : '加入失败')
     }

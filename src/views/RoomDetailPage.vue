@@ -1,7 +1,7 @@
 <template>
   <div class="room-detail">
     <AppNavBar
-      :title="room?.name ?? '账单'"
+      :title="room?.name || routeRoomName || '账单'"
       back-to="/"
       :right-actions="[
         { text: '新增', onClick: () => { checkAndShowBillForm() } },
@@ -86,6 +86,7 @@ import type { Bill, BillFilter as BillFilterType, RoomMember, RoomWithMembers, S
 const route = useRoute()
 const router = useRouter()
 const roomId = computed(() => route.params.id as string)
+const routeRoomName = (history.state as Record<string, unknown> | null)?.roomName as string | undefined
 const { getRoomById } = useRooms()
 const { getBills, getUnsyncedBills, syncBillsFromServer, mergeFetchedBills, deleteBill } = useLocalBills()
 const { submitBills, markForNextBill, checkUnsubmittedMembers, fetchBills } = useRemoteBills()

@@ -6,7 +6,19 @@ const initialized = ref(false)
 
 export function useAuth() {
   async function initAuth() {
-    const { data: { session } } = await supabase.auth.getSession()
+    let session = null
+    try {
+      const result = await supabase.auth.getSession()
+      session = result.data.session
+    } catch {
+      // Token refresh failed (e.g. CORS), clear stale auth data
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i)
+        if (key?.startsWith('sb-') && key.endsWith('-auth-token')) {
+          localStorage.removeItem(key)
+        }
+      }
+    }
     if (session?.user) {
       userId.value = session.user.id
     }

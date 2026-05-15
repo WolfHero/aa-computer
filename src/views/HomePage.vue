@@ -28,7 +28,7 @@
             :title="room.name"
             :label="room.description || '暂无简介'"
             is-link
-            @click="router.push(`/room/${room.id}`)"
+            @click="router.push({ path: `/room/${room.id}`, state: { roomName: room.name } })"
           >
             <template #value>
               <span class="member-count">{{ room.members?.length ?? 0 }} 人</span>
