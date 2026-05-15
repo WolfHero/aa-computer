@@ -30,11 +30,11 @@
       <van-field
         v-model="form.creatorName"
         name="creatorName"
-        label="你的名字"
-        placeholder="请输入你的名字"
+        label="昵称"
+        placeholder="请输入昵称，别人会看到这个代号"
         maxlength="20"
         autocomplete="off"
-        :rules="[{ required: true, message: '请输入你的名字' }]"
+        :rules="[{ required: true, message: '请输入昵称，别人会看到这个代号' }]"
       />
       <div style="margin: 16px">
         <van-button round block type="primary" native-type="submit" :loading="submitting">
