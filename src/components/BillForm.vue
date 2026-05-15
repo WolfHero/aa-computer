@@ -8,13 +8,14 @@
     @closed="onClosed"
     @update:show="emit('update:show', $event)"
   >
-    <van-form ref="formRef" @submit="onSubmit" class="dialog-form">
+    <van-form ref="formRef" @submit="onSubmit" class="dialog-form" autocomplete="off">
       <van-field
         v-model="form.content"
         name="content"
         label="付款内容"
         placeholder="请输入付款内容"
         maxlength="80"
+        autocomplete="off"
         :rules="[
           { required: true, message: '请输入付款内容' },
           { validator: validateContent, message: '付款内容过长（汉字40字/字母80字）' },
@@ -27,6 +28,7 @@
         placeholder="请输入金额"
         type="number"
         maxlength="13"
+        autocomplete="off"
         :rules="[
           { required: true, message: '请输入金额' },
           { pattern: /^\d{1,10}(\.\d{1,2})?$/, message: '金额格式不正确（最多10位整数+2位小数）' },

@@ -7,13 +7,14 @@
     @closed="resetForm"
     @update:show="emit('update:show', $event)"
   >
-    <van-form @submit="onSubmit" class="dialog-form">
+    <van-form @submit="onSubmit" class="dialog-form" autocomplete="off">
       <van-field
         v-model="form.name"
         name="name"
         label="房间名称"
         placeholder="请输入房间名称"
         maxlength="20"
+        autocomplete="off"
         :rules="[{ required: true, message: '请输入房间名称' }]"
       />
       <van-field
@@ -24,6 +25,7 @@
         rows="2"
         autosize
         type="textarea"
+        autocomplete="off"
       />
       <van-field
         v-model="form.creatorName"
@@ -31,6 +33,7 @@
         label="你的名字"
         placeholder="请输入你的名字"
         maxlength="20"
+        autocomplete="off"
         :rules="[{ required: true, message: '请输入你的名字' }]"
       />
       <div style="margin: 16px">
