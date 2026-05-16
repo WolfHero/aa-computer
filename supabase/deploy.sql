@@ -63,6 +63,7 @@ create or replace function is_member_of_room(p_room_id uuid)
 returns boolean
 language sql
 security definer
+set search_path = 'public'
 stable
 as $$
   select exists (
@@ -104,17 +105,17 @@ drop policy if exists "room_members_delete" on room_members;
 
 create policy "room_members_select" on room_members
   for select using (
-    user_id = auth.uid()::text or is_member_of_room(room_id)
+    user_id = (select auth.uid()::text) or is_member_of_room(room_id)
   );
 
 create policy "room_members_insert" on room_members
-  for insert with check (user_id = auth.uid()::text);
+  for insert with check (user_id = (select auth.uid()::text));
 
 create policy "room_members_update" on room_members
-  for update using (user_id = auth.uid()::text);
+  for update using (user_id = (select auth.uid()::text));
 
 create policy "room_members_delete" on room_members
-  for delete using (user_id = auth.uid()::text);
+  for delete using (user_id = (select auth.uid()::text));
 
 -- bills
 drop policy if exists "bills_select" on bills;
@@ -145,6 +146,7 @@ create or replace function calculate_aa(p_room_id uuid)
 returns jsonb
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 declare
   v_room_version int;
@@ -268,6 +270,7 @@ create or replace function cleanup_expired_rooms()
 returns void
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 begin
   delete from rooms where updated_at < now() - interval '7 days';
@@ -281,6 +284,7 @@ create or replace function get_room_info(p_room_id uuid)
 returns jsonb
 language sql
 security definer
+set search_path = 'public'
 stable
 as $$
   select jsonb_build_object(
@@ -317,6 +321,7 @@ create or replace function update_bill(
 returns void
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 begin
   if not exists (select 1 from room_members where room_id = p_room_id and user_id = auth.uid()::text) then
@@ -345,6 +350,7 @@ create or replace function delete_bill(
 returns void
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 begin
   if not exists (select 1 from room_members where room_id = p_room_id and user_id = auth.uid()::text) then
@@ -376,6 +382,7 @@ create or replace function cleanup_orphan_anonymous_users()
 returns void
 language plpgsql
 security definer
+set search_path = 'public, auth'
 as $$
 begin
   delete from auth.users

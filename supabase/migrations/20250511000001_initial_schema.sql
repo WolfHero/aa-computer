@@ -57,6 +57,7 @@ create or replace function is_member_of_room(p_room_id uuid)
 returns boolean
 language sql
 security definer
+set search_path = 'public'
 stable
 as $$
   select exists (
@@ -88,17 +89,17 @@ create policy "rooms_delete" on rooms
 -- room_members
 create policy "room_members_select" on room_members
   for select using (
-    user_id = auth.uid()::text or is_member_of_room(room_id)
+    user_id = (select auth.uid()::text) or is_member_of_room(room_id)
   );
 
 create policy "room_members_insert" on room_members
-  for insert with check (user_id = auth.uid()::text);
+  for insert with check (user_id = (select auth.uid()::text));
 
 create policy "room_members_update" on room_members
-  for update using (user_id = auth.uid()::text);
+  for update using (user_id = (select auth.uid()::text));
 
 create policy "room_members_delete" on room_members
-  for delete using (user_id = auth.uid()::text);
+  for delete using (user_id = (select auth.uid()::text));
 
 -- bills
 create policy "bills_select" on bills
@@ -122,6 +123,7 @@ create or replace function calculate_aa(p_room_id uuid)
 returns jsonb
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 declare
   v_room_version int;
@@ -246,6 +248,7 @@ create or replace function cleanup_expired_rooms()
 returns void
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 begin
   delete from rooms where updated_at < now() - interval '7 days';

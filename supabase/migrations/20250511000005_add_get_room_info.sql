@@ -5,6 +5,7 @@ create or replace function get_room_info(p_room_id uuid)
 returns jsonb
 language sql
 security definer
+set search_path = 'public'
 stable
 as $$
   select jsonb_build_object(

@@ -36,7 +36,7 @@ create policy "rooms_delete" on rooms
 
 create policy "room_members_select" on room_members
   for select using (
-    user_id = auth.uid()::text or is_member_of_room(room_id)
+    user_id = (select auth.uid()::text) or is_member_of_room(room_id)
   );
 
 create policy "bills_select" on bills

@@ -6,6 +6,7 @@ create or replace function cleanup_orphan_anonymous_users()
 returns void
 language plpgsql
 security definer
+set search_path = 'public, auth'
 as $$
 begin
   delete from auth.users
