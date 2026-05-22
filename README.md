@@ -86,7 +86,7 @@ src/
 
 ---
 
-### 方案一：使用 Supabase 云服务（推荐）
+### 方案一：使用 Supabase 云服务（国内不推荐）
 
 #### 1. 创建 Supabase 项目
 
@@ -141,7 +141,7 @@ pnpm build
 
 ### 方案二：本地开发（Supabase CLI + Docker）
 
-此方案适合本地调试，需要安装 Docker。
+此方案适合本地调试，也可以用于部署到服务器，需要安装 Docker。
 
 #### 1. 安装 Supabase CLI
 
@@ -156,6 +156,8 @@ scoop install supabase
 # 或使用 brew（macOS）
 brew install supabase/tap/supabase
 ```
+
+> 如果直接运行 `supabase` 命令失败，可尝试使用 `npx supabase` 替代（无需全局安装，自动使用项目目录下的 Supabase CLI）。
 
 #### 2. 启动本地 Supabase 服务
 
@@ -195,7 +197,7 @@ Studio URL: http://127.0.0.1:54323
 #### 3. 应用数据库迁移
 
 ```bash
-supabase db push
+supabase db reset
 ```
 
 这会依次执行 `supabase/migrations/` 目录下的所有迁移文件。

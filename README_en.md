@@ -141,7 +141,7 @@ Other supported platforms: **Netlify**, **Cloudflare Pages**, **GitHub Pages**, 
 
 ### Option 2: Local Development (Supabase CLI + Docker)
 
-Use this for local debugging and development. Requires Docker.
+This solution is suitable for local debugging, but can also be used for deployment to a server. Docker is required.
 
 #### 1. Install Supabase CLI
 
@@ -156,6 +156,8 @@ scoop install supabase
 # brew (macOS)
 brew install supabase/tap/supabase
 ```
+
+> If running `supabase` directly fails, try `npx supabase` instead (no global install needed, uses the local Supabase CLI automatically).
 
 #### 2. Start Local Supabase Services
 
@@ -175,7 +177,7 @@ Studio URL: http://127.0.0.1:54323
 #### 3. Apply Database Migrations
 
 ```bash
-supabase db push
+supabase db reset
 ```
 
 This runs all migration files from `supabase/migrations/` in order.
