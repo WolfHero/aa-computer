@@ -146,7 +146,7 @@ test.describe('local-room-persistence 完整设计验证', () => {
       await expect(page.getByText(roomName)).toBeVisible()
       await expect(page.getByText(NICKNAME)).toBeVisible()
       await expect(page.getByText('你')).toBeVisible()
-      await expect(page.getByText('复制邀请链接')).toBeVisible()
+      await expect(page.getByText('复制公共邀请链接')).toBeVisible()
     })
   })
 

@@ -97,7 +97,7 @@ const { submitBills, markForNextBill, checkUnsubmittedMembers, fetchBills } = us
 const { getCachedRoom, saveRoom, removeRoom, markRoomExpired, isRoomExpired } = useLocalRooms()
 const { userId } = useAuth()
 
-type MemberInfo = { id: string; name: string; user_id: string; is_unsubmitted: boolean; created_at: string }
+type MemberInfo = { id: string; name: string; user_id: string | null; is_unsubmitted: boolean; created_at: string }
 const room = ref<RoomWithMembers | null>(null)
 const myMember = ref<MemberInfo | null>(null)
 const roomExpired = ref(false)

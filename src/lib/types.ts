@@ -6,15 +6,17 @@ export interface Room {
   settings: Record<string, unknown>
   version: number
   updated_at: string
+  owner_id: string
 }
 
 export interface RoomMember {
   id: string
   room_id: string
-  user_id: string
+  user_id: string | null
   name: string
   is_unsubmitted: boolean
   created_at: string
+  invite_token?: string | null
 }
 
 export interface Bill {
@@ -86,6 +88,7 @@ export interface CachedRoom {
   settings: Record<string, unknown>
   version: number
   updated_at: string
+  owner_id: string
   members: Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted' | 'created_at'>[]
 }
 

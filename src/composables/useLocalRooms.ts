@@ -59,6 +59,7 @@ export function useLocalRooms() {
       settings: room.settings,
       version: room.version,
       updated_at: room.updated_at,
+      owner_id: room.owner_id,
       members: room.members,
     }
     persist()

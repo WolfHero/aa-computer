@@ -50,6 +50,7 @@ import { showToast } from '@/utils/toast'
 import { useRooms } from '@/composables/useRooms'
 import { useAAResult } from '@/composables/useAAResult'
 import { useLocalBills } from '@/composables/useLocalBills'
+import { useLocalRooms } from '@/composables/useLocalRooms'
 import { supabase } from '@/lib/supabaseClient'
 import AppNavBar from '@/components/AppNavBar.vue'
 import AACalculationChart from '@/components/AACalculationChart.vue'
@@ -61,11 +62,11 @@ const roomId = route.params.id as string
 const { getRoomById, getMyMemberRecord } = useRooms()
 const { getOrCalculateAA } = useAAResult()
 const { getBills } = useLocalBills()
-const { getCachedRoom, isRoomExpired } = useLocalRooms()
+const { isRoomExpired } = useLocalRooms()
 
 const BILL_PAGE_SIZE = 10
 
-type MemberInfo = { id: string; name: string; user_id: string; is_unsubmitted: boolean; created_at: string }
+type MemberInfo = { id: string; name: string; user_id: string | null; is_unsubmitted: boolean; created_at: string }
 const loading = ref(true)
 const aaResult = ref<AAResult | null>(null)
 const room = ref<RoomWithMembers | null>(null)

@@ -50,7 +50,7 @@ const actions = computed(() => {
     ]
   }
   const list = [
-    { name: '复制房间邀请链接', key: 'copy-invite' },
+    { name: '复制公共邀请链接', key: 'copy-invite' },
     { name: '计算AA', key: 'aa' },
     { name: props.sortMode === 'created_at' ? '切换为按付款时间排序' : '切换为按创建时间排序', key: 'sort' },
   ]

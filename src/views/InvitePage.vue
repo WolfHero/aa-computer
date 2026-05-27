@@ -77,7 +77,7 @@ onMounted(async () => {
 
   // 已有本地账单记录则直接跳转
   const localBills = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_BILLS) || '{}')
-  if (localBills[roomId]) {
+  if (Array.isArray(localBills[roomId]) && localBills[roomId].length > 0) {
     router.replace({ path: `/room/${roomId}` })
     return
   }

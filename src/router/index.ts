@@ -14,6 +14,11 @@ const router = createRouter({
       component: () => import('@/views/InvitePage.vue'),
     },
     {
+      path: '/invite/member',
+      name: 'invite-member',
+      component: () => import('@/views/InviteMemberPage.vue'),
+    },
+    {
       path: '/room/:id',
       name: 'room-detail',
       component: () => import('@/views/RoomDetailPage.vue'),
