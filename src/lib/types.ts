@@ -77,3 +77,18 @@ export interface BillFilter {
 }
 
 export type SortMode = 'created_at' | 'paid_at'
+
+export interface CachedRoom {
+  id: string
+  name: string
+  description: string
+  created_at: string
+  settings: Record<string, unknown>
+  version: number
+  updated_at: string
+  members: Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted' | 'created_at'>[]
+}
+
+export interface LocalRoomStore {
+  [roomId: string]: CachedRoom
+}

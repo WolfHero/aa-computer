@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   PRIVACY_ACCEPTED: 'aa_privacy_accepted',
   OLD_LOCAL_BILLS: 'old_aa_local_bills',
   OLD_AUTH_TOKEN: 'old_auth_token',
+  LOCAL_ROOMS: 'aa_cached_rooms',
 } as const
 
 export const PAGE_SIZE = 20

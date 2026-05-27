@@ -23,19 +23,22 @@
 
         <template v-else>
           <van-cell
-            v-for="room in rooms"
+            v-for="room in mergedRooms"
             :key="room.id"
-            :title="room.name"
             :label="room.description || '暂无简介'"
             is-link
             @click="router.push({ path: `/room/${room.id}`, state: { roomName: room.name } })"
           >
+            <template #title>
+              {{ room.name }}
+              <span v-if="!remoteRoomIds.has(room.id)" class="local-badge">本地</span>
+            </template>
             <template #value>
               <span class="member-count">{{ room.members?.length ?? 0 }} 人</span>
             </template>
           </van-cell>
 
-          <div v-if="rooms.length === 0" class="empty-state">
+          <div v-if="mergedRooms.length === 0" class="empty-state">
             <van-icon name="plus" size="48" color="#c8c9cc" />
             <p>点击右上角「新增」创建房间</p>
           </div>
@@ -97,11 +100,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast } from '@/utils/toast'
 import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
+import { useLocalRooms } from '@/composables/useLocalRooms'
 import { STORAGE_KEYS } from '@/utils/constants'
 import AppNavBar from '@/components/AppNavBar.vue'
 import RoomCreateDialog from '@/components/RoomCreateDialog.vue'
@@ -109,6 +113,14 @@ import RoomCreateDialog from '@/components/RoomCreateDialog.vue'
 const router = useRouter()
 const { userId, getRefreshToken, refreshSession } = useAuth()
 const { rooms, loading, finished, fetchRooms } = useRooms()
+const { getAllCachedRooms } = useLocalRooms()
+
+const remoteRoomIds = computed(() => new Set(rooms.value.map(r => r.id)))
+const mergedRooms = computed(() => {
+  const remote = rooms.value
+  const localOnly = getAllCachedRooms().filter(r => !remoteRoomIds.value.has(r.id))
+  return [...remote, ...localOnly]
+})
 const refreshing = ref(false)
 const listLoading = ref(false)
 const showCreateDialog = ref(false)
@@ -262,6 +274,16 @@ onMounted(() => {
 .member-count {
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+.local-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 18px;
+  border-radius: 4px;
+  background: #fff7e6;
+  color: #fa8c16;
 }
 .loading-state {
   text-align: center;

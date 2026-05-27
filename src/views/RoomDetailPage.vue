@@ -3,14 +3,14 @@
     <AppNavBar
       :title="room?.name || routeRoomName || '账单'"
       back-to="/"
-      :right-actions="[
-        { text: '新增', onClick: () => { checkAndShowBillForm() } },
-        { text: '菜单', onClick: () => showActionSheet = true },
-      ]"
+      :right-actions="localOnly
+        ? [{ text: '菜单', onClick: () => showActionSheet = true }]
+        : [{ text: '新增', onClick: () => { checkAndShowBillForm() } }, { text: '菜单', onClick: () => showActionSheet = true }]
+      "
     />
 
     <div v-if="roomExpired" class="expired-banner">
-      <van-icon name="info-o" /> 房间已过期，数据仅保存在本地，无法同步
+      <van-icon name="info-o" /> {{ localOnly ? '房间已过期，数据仅保存在本地（只读模式）' : '房间已过期，数据仅保存在本地，无法同步' }}
     </div>
 
     <BillFilter
@@ -59,9 +59,11 @@
       :room-id="roomId"
       :sort-mode="sortMode"
       :room-expired="roomExpired"
+      :local-only="localOnly"
       @update:sort-mode="onSortModeChange"
       @submit-bills="onBillsSubmitted"
       @calculate-aa="onCalculateAA"
+      @delete-local="onDeleteLocal"
     />
   </div>
 </template>
@@ -69,10 +71,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast, showConfirmDialog } from 'vant'
+import { showConfirmDialog } from 'vant'
+import { showToast } from '@/utils/toast'
 import { supabase } from '@/lib/supabaseClient'
 import { useRooms } from '@/composables/useRooms'
 import { useLocalBills } from '@/composables/useLocalBills'
+import { useLocalRooms } from '@/composables/useLocalRooms'
 import { useRemoteBills } from '@/composables/useRemoteBills'
 import { useAuth } from '@/composables/useAuth'
 import AppNavBar from '@/components/AppNavBar.vue'
@@ -88,14 +92,16 @@ const router = useRouter()
 const roomId = computed(() => route.params.id as string)
 const routeRoomName = (history.state as Record<string, unknown> | null)?.roomName as string | undefined
 const { getRoomById } = useRooms()
-const { getBills, getUnsyncedBills, syncBillsFromServer, mergeFetchedBills, deleteBill } = useLocalBills()
+const { getBills, getUnsyncedBills, syncBillsFromServer, mergeFetchedBills, deleteBill, clearRoom } = useLocalBills()
 const { submitBills, markForNextBill, checkUnsubmittedMembers, fetchBills } = useRemoteBills()
+const { getCachedRoom, saveRoom, removeRoom, markRoomExpired, isRoomExpired } = useLocalRooms()
 const { userId } = useAuth()
 
 type MemberInfo = { id: string; name: string; user_id: string; is_unsubmitted: boolean; created_at: string }
 const room = ref<RoomWithMembers | null>(null)
 const myMember = ref<MemberInfo | null>(null)
 const roomExpired = ref(false)
+const localOnly = ref(false)
 const members = ref<Pick<RoomMember, 'id' | 'name'>[]>([])
 
 // Bill list state
@@ -176,11 +182,25 @@ async function loadRoom() {
     myMember.value = room.value.members.find(m => m.user_id === userId.value) ?? null
     members.value = room.value.members.map(m => ({ id: m.id, name: m.name }))
     roomExpired.value = false
+    localOnly.value = false
+    saveRoom(room.value)
   } catch (e) {
-    roomExpired.value = true
-    console.error('加载房间失败', e)
-    showToast('无权限访问')
-    router.replace('/')
+    const cached = getCachedRoom(roomId.value)
+    if (cached) {
+      room.value = cached as RoomWithMembers
+      members.value = cached.members.map(m => ({ id: m.id, name: m.name }))
+      myMember.value = cached.members.find(m => m.user_id === userId.value) ?? null
+      roomExpired.value = true
+      localOnly.value = true
+      markRoomExpired(roomId.value)
+      showToast('房间已过期，数据仅保存在本地')
+    } else {
+      roomExpired.value = true
+      localOnly.value = false
+      console.error('加载房间失败', e)
+      showToast('无权限访问')
+      router.replace('/')
+    }
   }
 }
 
@@ -254,6 +274,7 @@ async function checkAndShowBillForm() {
 }
 
 function onBillEdit(bill: Bill) {
+  if (localOnly.value) return
   editingBill.value = bill
   showBillForm.value = true
 }
@@ -327,6 +348,29 @@ async function onCalculateAA() {
   router.push(`/room/${roomId.value}/aa`)
 }
 
+async function onDeleteLocal() {
+  try {
+    await showConfirmDialog({
+      title: '删除本地数据',
+      message: '确定删除此房间的本地缓存和所有本地账单数据吗？此操作不可恢复。',
+      confirmButtonColor: '#ee0a24',
+    })
+  } catch { return }
+
+  removeRoom(roomId.value)
+  clearRoom(roomId.value)
+  // 清除版本缓存
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ROOM_VERSIONS)
+    if (raw) {
+      const map = JSON.parse(raw)
+      delete map[roomId.value]
+      localStorage.setItem(STORAGE_KEYS.ROOM_VERSIONS, JSON.stringify(map))
+    }
+  } catch { /* ignore */ }
+  router.replace('/')
+}
+
 async function onRefresh() {
   refreshing.value = true
   await loadRoom()
@@ -335,7 +379,27 @@ async function onRefresh() {
   refreshing.value = false
 }
 
+function loadSyncedBillsFromLocal() {
+  syncedBills.value = getBills(roomId.value)
+    .filter(b => b.synced && b.id)
+    .map(b => ({ ...b, local_id: b.id, synced: true }))
+  listFinished.value = true
+}
+
 onMounted(async () => {
+  // 已确认过期的房间走本地缓存，不发起请求
+  if (isRoomExpired(roomId.value)) {
+    const cached = getCachedRoom(roomId.value)
+    if (cached) {
+      room.value = cached as RoomWithMembers
+      members.value = cached.members.map(m => ({ id: m.id, name: m.name }))
+      roomExpired.value = true
+      localOnly.value = true
+      loadSyncedBillsFromLocal()
+      return
+    }
+  }
+
   if (!userId.value) {
     showToast('无权限访问')
     router.replace('/')
@@ -343,17 +407,15 @@ onMounted(async () => {
   }
 
   await loadRoom()
-  if (!roomExpired.value && room.value) {
+  if (roomExpired.value) {
+    loadSyncedBillsFromLocal()
+  } else if (room.value) {
     if (room.value.version !== lastBillsVersion.value) {
       await loadRemoteBills(true)
       lastBillsVersion.value = room.value.version
       saveRoomVersion(room.value.version)
     } else {
-      // Version unchanged, load from localStorage cache
-      syncedBills.value = getBills(roomId.value)
-        .filter(b => b.synced && b.id)
-        .map(b => ({ ...b, local_id: b.id, synced: true }))
-      listFinished.value = true
+      loadSyncedBillsFromLocal()
     }
   }
 })

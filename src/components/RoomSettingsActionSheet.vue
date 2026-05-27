@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast } from '@/utils/toast'
 import { useRemoteBills } from '@/composables/useRemoteBills'
 import type { SortMode } from '@/lib/types'
 
@@ -21,11 +21,13 @@ const props = withDefaults(defineProps<{
   roomId?: string
   sortMode?: SortMode
   roomExpired?: boolean
+  localOnly?: boolean
 }>(), {
   show: false,
   roomId: '',
   sortMode: 'created_at',
   roomExpired: false,
+  localOnly: false,
 })
 
 const emit = defineEmits<{
@@ -33,12 +35,20 @@ const emit = defineEmits<{
   'update:sortMode': [value: SortMode]
   'submit-bills': []
   'calculate-aa': []
+  'delete-local': []
 }>()
 
 const router = useRouter()
 const { submitBills } = useRemoteBills()
 
 const actions = computed(() => {
+  if (props.localOnly) {
+    return [
+      { name: props.sortMode === 'created_at' ? '切换为按付款时间排序' : '切换为按创建时间排序', key: 'sort' },
+      { name: '房间设置', key: 'settings' },
+      { name: '删除本地数据', key: 'delete-local', color: '#ee0a24' },
+    ]
+  }
   const list = [
     { name: '复制房间邀请链接', key: 'copy-invite' },
     { name: '计算AA', key: 'aa' },
@@ -80,6 +90,9 @@ async function onSelect(action: { key: string }) {
       break
     case 'settings':
       router.push(`/room/${props.roomId}/settings`)
+      break
+    case 'delete-local':
+      emit('delete-local')
       break
   }
   emit('update:show', false)

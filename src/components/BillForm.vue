@@ -125,7 +125,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue'
-import { showToast } from 'vant'
+import { showToast } from '@/utils/toast'
 import dayjs from 'dayjs'
 import { supabase } from '@/lib/supabaseClient'
 import { useLocalBills } from '@/composables/useLocalBills'

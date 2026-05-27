@@ -47,7 +47,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { showToast } from 'vant'
+import { showToast } from '@/utils/toast'
 import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
 

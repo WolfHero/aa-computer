@@ -46,7 +46,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast } from '@/utils/toast'
 import { useRooms } from '@/composables/useRooms'
 import { useAAResult } from '@/composables/useAAResult'
 import { useLocalBills } from '@/composables/useLocalBills'
@@ -61,6 +61,7 @@ const roomId = route.params.id as string
 const { getRoomById, getMyMemberRecord } = useRooms()
 const { getOrCalculateAA } = useAAResult()
 const { getBills } = useLocalBills()
+const { getCachedRoom, isRoomExpired } = useLocalRooms()
 
 const BILL_PAGE_SIZE = 10
 
@@ -171,6 +172,11 @@ function onIncludeSelfPayChange() {
 
 async function onRecalculate() {
   try {
+    if (isRoomExpired(roomId)) {
+      showToast('房间已过期，无法重新计算')
+      return
+    }
+
     // Re-fetch room to check version change
     const updatedRoom = await getRoomById(roomId)
     const versionChanged = updatedRoom.version !== room.value?.version
