@@ -77,7 +77,9 @@ src/
 
 Built on Supabase PostgreSQL with 4 core tables: `rooms`, `room_members`, `bills`, `aa_results`. Access is controlled via RLS (Row-Level Security) and the `is_member_of_room()` helper function. AA calculation logic is implemented as a PL/pgSQL function `calculate_aa(p_room_id)`.
 
-## Self-Deployment
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the project's development plans and future direction, including features being implemented, planned, and under consideration. (Note: ROADMAP.md is currently Chinese-only.)
 
 ### Prerequisites
 

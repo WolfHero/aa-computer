@@ -77,6 +77,10 @@ src/
 
 使用 Supabase PostgreSQL，包含 4 张核心表：`rooms`、`room_members`、`bills`、`aa_results`。通过 RLS（行级安全）和 `is_member_of_room()` 函数控制数据访问权限。AA 计算逻辑由 PL/pgSQL 函数 `calculate_aa(p_room_id)` 实现。
 
+## 路线图
+
+查看 [ROADMAP.md](ROADMAP.md) 了解项目的开发计划和未来方向，包括正在实现、计划内和有初步想法的功能。
+
 ## 自部署
 
 ### 前提条件
