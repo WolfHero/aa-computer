@@ -1,6 +1,6 @@
 <template>
   <div class="settings-page">
-    <AppNavBar title="房间设置" />
+    <AppNavBar title="房间设置" :back-to="`/room/${roomId}`" />
 
     <div class="page-content">
       <div v-if="localOnly" class="expired-banner">
@@ -14,7 +14,7 @@
         <van-cell title="版本" :value="String(room?.version ?? 0)" />
       </van-cell-group>
 
-      <van-cell-group inset title="成员列表" style="margin-top: 16px">
+      <van-cell-group inset title="成员列表">
         <template v-for="m in members" :key="m.id">
           <van-cell center>
             <template #title>
@@ -29,6 +29,7 @@
             <template v-if="!localOnly" #right-icon>
               <div class="member-actions">
                 <van-icon
+                  v-if="m.user_id === userId || isOwner"
                   name="edit"
                   class="action-icon"
                   @click="onEditName(m)"
@@ -145,7 +146,7 @@ const { clearRoom } = useLocalBills()
 const { userId } = useAuth()
 
 const room = ref<RoomWithMembers | null>(null)
-const members = ref<Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted'>[]>([])
+const members = ref<Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted' | 'created_at'>[]>([])
 const localOnly = ref(false)
 
 const isOwner = computed(() => room.value?.owner_id === userId.value)
@@ -234,10 +235,7 @@ async function onAddMemberConfirm(action: string): Promise<boolean> {
   try {
     const member = await addMember(roomId, trimmed)
     members.value.push(member)
-    if (room.value) {
-      room.value.members.push(member)
-      saveRoom(room.value)
-    }
+    if (room.value) saveRoom(room.value)
     newMemberName.value = ''
     showToast('成员已添加')
     return true
@@ -271,7 +269,7 @@ async function onRemoveMember(m: Pick<RoomMember, 'id' | 'name'>) {
     await removeMember(m.id)
     members.value = members.value.filter(x => x.id !== m.id)
     if (room.value) {
-      room.value.members = room.value.members.filter(x => x.id !== m.id)
+      room.value.members = members.value
       saveRoom(room.value)
     }
     showToast('已移除')
@@ -285,7 +283,7 @@ onMounted(async () => {
     const cached = getCachedRoom(roomId)
     if (cached) {
       room.value = cached as RoomWithMembers
-      members.value = cached.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id, is_unsubmitted: m.is_unsubmitted }))
+      members.value = cached.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id, is_unsubmitted: m.is_unsubmitted, created_at: m.created_at }))
       localOnly.value = true
       return
     }

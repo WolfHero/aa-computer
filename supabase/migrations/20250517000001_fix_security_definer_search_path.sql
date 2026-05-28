@@ -48,7 +48,7 @@ begin
         0
       ) as total_paid,
       coalesce(
-        sum(b.amount) / cardinality(b.shared_by) filter (where rm.id = any(b.shared_by)),
+        sum(b.amount / (select cardinality(b.shared_by))) filter (where rm.id = any(b.shared_by)),
         0
       ) as total_share
     from room_members rm

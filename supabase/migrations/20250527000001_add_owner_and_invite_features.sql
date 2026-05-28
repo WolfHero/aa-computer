@@ -76,7 +76,13 @@ as $$
     'room_id', rm.room_id,
     'room_name', r.name,
     'room_owner_id', r.owner_id,
-    'is_bound', rm.user_id is not null
+    'is_bound', rm.user_id is not null,
+    'creator_name', (
+      select rm2.name from room_members rm2
+      where rm2.room_id = r.id
+      order by rm2.created_at
+      limit 1
+    )
   )
   from room_members rm
   join rooms r on r.id = rm.room_id

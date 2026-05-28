@@ -54,7 +54,7 @@ import { useRooms } from '@/composables/useRooms'
 const props = withDefaults(defineProps<{ show?: boolean }>(), { show: false })
 const emit = defineEmits<{
   'update:show': [value: boolean]
-  created: []
+  created: [roomId: string]
 }>()
 
 const { ensureAuth } = useAuth()
@@ -77,10 +77,10 @@ async function onSubmit() {
   submitting.value = true
   try {
     await ensureAuth()
-    await createRoom(form.name, form.description, form.creatorName)
+    const { room } = await createRoom(form.name, form.description, form.creatorName)
     showToast('房间创建成功')
     emit('update:show', false)
-    emit('created')
+    emit('created', room.id)
   } catch (e: unknown) {
     showToast(e instanceof Error ? e.message : '创建失败')
   } finally {

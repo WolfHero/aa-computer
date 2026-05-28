@@ -78,16 +78,17 @@ test.describe('local-room-persistence 完整设计验证', () => {
       await page.locator('.van-dialog input').nth(1).fill(NICKNAME)
       await page.locator('.van-dialog .van-button--primary').click()
 
-      await expect(page.getByText(roomName)).toBeVisible({ timeout: 20000 })
+      // 创建成功后直接跳转到设置页，使用返回按钮回到房间详情
+      await page.waitForSelector('.settings-page', { timeout: 15000 })
+      await page.locator('.van-nav-bar__left').click()
+      await page.waitForSelector('.room-detail', { timeout: 10000 })
+      await page.waitForTimeout(1500)
     })
 
     const bill1Content = `午餐 ${Date.now()}`
     const bill2Content = `晚餐 ${Date.now()}`
 
-    await test.step('进入房间 → 添加两条账单', async () => {
-      await page.getByText(roomName).click()
-      await page.waitForSelector('.room-detail')
-      await page.waitForTimeout(1500)
+    await test.step('添加两条账单', async () => {
 
       // 第一条
       await page.locator('.van-nav-bar__right').getByText('新增').click()

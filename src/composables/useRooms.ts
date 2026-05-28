@@ -180,7 +180,7 @@ export function useRooms() {
   async function getMemberByInviteToken(token: string) {
     const { data, error } = await supabase.rpc('get_member_by_invite_token', { p_token: token })
     if (error) throw error
-    return data as { id: string; name: string; room_id: string; room_name: string; room_owner_id: string; is_bound: boolean } | null
+    return data as { id: string; name: string; room_id: string; room_name: string; room_owner_id: string; is_bound: boolean; creator_name: string } | null
   }
 
   async function acceptInvite(token: string) {

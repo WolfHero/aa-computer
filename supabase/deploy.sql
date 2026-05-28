@@ -457,7 +457,13 @@ as $$
     'room_id', rm.room_id,
     'room_name', r.name,
     'room_owner_id', r.owner_id,
-    'is_bound', rm.user_id is not null
+    'is_bound', rm.user_id is not null,
+    'creator_name', (
+      select rm2.name from room_members rm2
+      where rm2.room_id = r.id
+      order by rm2.created_at
+      limit 1
+    )
   )
   from room_members rm
   join rooms r on r.id = rm.room_id
@@ -526,3 +532,31 @@ begin
   return v_token;
 end;
 $$;
+
+-- ============================================
+-- Migration 12: Prevent deleting members referenced in bills
+-- ============================================
+
+create or replace function check_member_in_bills()
+returns trigger
+language plpgsql
+security definer
+set search_path = 'public'
+as $$
+begin
+  if exists (
+    select 1 from bills
+    where room_id = old.room_id
+    and old.id = any(shared_by)
+  ) then
+    raise exception '该成员已在账单分摊中，无法删除（请先从账单中移除该成员）';
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists trg_check_member_in_bills on room_members;
+create trigger trg_check_member_in_bills
+  before delete on room_members
+  for each row
+  execute function check_member_in_bills();

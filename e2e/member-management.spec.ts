@@ -71,12 +71,7 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.locator('.van-dialog input').nth(1).fill(NICKNAME)
     await page.locator('.van-dialog .van-button--primary').click()
 
-    await page.waitForTimeout(2000)  // wait for toast + fetchRooms
-    await expect(page.getByText(roomName)).toBeVisible({ timeout: 15000 })
-
-    // -- 进入房间详情 --
-    await page.getByText(roomName).click()
-    await page.waitForSelector('.room-detail', { timeout: 5000 })
+    await page.waitForSelector('.settings-page', { timeout: 15000 })
     const roomId = extractRoomId(page.url())
     expect(roomId).toBeTruthy()
 
@@ -84,12 +79,6 @@ test.describe('成员管理与房主功能 E2E', () => {
     const rooms = await adminFetch(`rooms?id=eq.${roomId}&select=owner_id`)
     expect(rooms).toHaveLength(1)
     expect(rooms[0].owner_id).toBeTruthy()
-
-    // -- 进入设置页 --
-    await page.locator('.van-nav-bar__right').getByText('菜单').click()
-    await page.waitForSelector('.van-action-sheet', { state: 'visible' })
-    await page.getByText('房间设置').click()
-    await page.waitForSelector('.settings-page', { state: 'visible' })
 
     // 验证房主 badge
     await expect(page.locator('.owner-badge')).toBeVisible()
@@ -135,17 +124,8 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.locator('.van-dialog input').nth(0).fill(roomName)
     await page.locator('.van-dialog input').nth(1).fill(NICKNAME)
     await page.locator('.van-dialog .van-button--primary').click()
-    await page.waitForTimeout(2000)
-    await expect(page.getByText(roomName)).toBeVisible({ timeout: 15000 })
-
-    // 进入房间 → 设置
-    await page.getByText(roomName).click()
-    await page.waitForSelector('.room-detail', { timeout: 5000 })
+    await page.waitForSelector('.settings-page', { timeout: 15000 })
     const roomId = extractRoomId(page.url())
-    await page.locator('.van-nav-bar__right').getByText('菜单').click()
-    await page.waitForSelector('.van-action-sheet', { state: 'visible' })
-    await page.getByText('房间设置').click()
-    await page.waitForSelector('.settings-page', { state: 'visible' })
 
     // 添加占位成员
     await page.getByText('添加成员').click()
@@ -189,17 +169,10 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.locator('.van-dialog input').nth(0).fill(roomName)
     await page.locator('.van-dialog input').nth(1).fill(NICKNAME)
     await page.locator('.van-dialog .van-button--primary').click()
-    await page.waitForTimeout(2000)
-    await expect(page.getByText(roomName)).toBeVisible({ timeout: 15000 })
-    await page.getByText(roomName).click()
-    await page.waitForSelector('.room-detail', { timeout: 5000 })
+    await page.waitForSelector('.settings-page', { timeout: 15000 })
     const roomId = extractRoomId(page.url())
 
-    // 进入设置 → 添加占位成员
-    await page.locator('.van-nav-bar__right').getByText('菜单').click()
-    await page.waitForSelector('.van-action-sheet', { state: 'visible' })
-    await page.getByText('房间设置').click()
-    await page.waitForSelector('.settings-page', { state: 'visible' })
+    // 添加占位成员（接受邀请用）
     await page.getByText('添加成员').click()
     await page.waitForSelector('.van-dialog', { state: 'visible' })
     await page.locator('.van-dialog .van-field__control').fill('AcceptUser')
@@ -250,16 +223,7 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.locator('.van-dialog input').nth(0).fill(roomName)
     await page.locator('.van-dialog input').nth(1).fill(NICKNAME)
     await page.locator('.van-dialog .van-button--primary').click()
-    await page.waitForTimeout(2000)
-    await expect(page.getByText(roomName)).toBeVisible({ timeout: 15000 })
-    await page.getByText(roomName).click()
-    await page.waitForSelector('.room-detail', { timeout: 5000 })
-
-    // 进入设置页
-    await page.locator('.van-nav-bar__right').getByText('菜单').click()
-    await page.waitForSelector('.van-action-sheet', { state: 'visible' })
-    await page.getByText('房间设置').click()
-    await page.waitForSelector('.settings-page', { state: 'visible' })
+    await page.waitForSelector('.settings-page', { timeout: 15000 })
 
     // 点击编辑图标（自己的昵称）
     const editIcons = page.locator('.van-icon-edit')
@@ -303,17 +267,10 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.locator('.van-dialog input').nth(0).fill(roomName)
     await page.locator('.van-dialog input').nth(1).fill(NICKNAME)
     await page.locator('.van-dialog .van-button--primary').click()
-    await page.waitForTimeout(2000)
-    await expect(page.getByText(roomName)).toBeVisible({ timeout: 15000 })
-    await page.getByText(roomName).click()
-    await page.waitForSelector('.room-detail', { timeout: 5000 })
+    await page.waitForSelector('.settings-page', { timeout: 15000 })
     const roomId = extractRoomId(page.url())
 
-    // 进入设置 → 添加成员
-    await page.locator('.van-nav-bar__right').getByText('菜单').click()
-    await page.waitForSelector('.van-action-sheet', { state: 'visible' })
-    await page.getByText('房间设置').click()
-    await page.waitForSelector('.settings-page', { state: 'visible' })
+    // 添加成员
     await page.getByText('添加成员').click()
     await page.waitForSelector('.van-dialog', { state: 'visible' })
     await page.locator('.van-dialog .van-field__control').fill('BoundUser')
@@ -364,10 +321,7 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.locator('.van-dialog input').nth(0).fill(roomName)
     await page.locator('.van-dialog input').nth(1).fill(NICKNAME)
     await page.locator('.van-dialog .van-button--primary').click()
-    await page.waitForTimeout(2000)
-    await expect(page.getByText(roomName)).toBeVisible({ timeout: 15000 })
-    await page.getByText(roomName).click()
-    await page.waitForSelector('.room-detail', { timeout: 5000 })
+    await page.waitForSelector('.settings-page', { timeout: 15000 })
     const roomId = extractRoomId(page.url())
 
     // 直接访问公共邀请页
