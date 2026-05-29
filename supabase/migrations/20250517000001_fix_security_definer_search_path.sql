@@ -48,86 +48,88 @@ begin
         0
       ) as total_paid,
       coalesce(
-        sum(b.amount / (select cardinality(b.shared_by))) filter (where rm.id = any(b.shared_by)),
+        sum(b.amount / (select cardinality(b.shared_by)))
+        filter (where rm.id = any(b.shared_by)),
         0
-      ) as total_share
+      ) as total_share,
+      coalesce(
+        sum(b_self.amount) filter (where b_self.created_by = rm.id),
+        0
+      ) as self_pay
     from room_members rm
     left join bills b on b.room_id = rm.room_id
       and not (cardinality(b.shared_by) = 1 and b.created_by = b.shared_by[1])
+    left join bills b_self on b_self.room_id = rm.room_id
+      and cardinality(b_self.shared_by) = 1
+      and b_self.created_by = b_self.shared_by[1]
     where rm.room_id = p_room_id
     group by rm.id, rm.name
-  ),
-  net_positions as (
-    select
-      member_id,
-      name,
-      total_paid,
-      total_share,
-      total_paid - total_share as net
-    from member_totals
   )
-  select jsonb_build_object(
-    'members', coalesce(jsonb_agg(
-      jsonb_build_object(
-        'member_id', member_id,
-        'name', name,
-        'total_paid', total_paid,
-        'total_share', total_share,
-        'net', net
-      )
-      order by name
-    ), '[]'::jsonb)
-  )
-  into v_members
-  from net_positions;
-
-  -- Greedy pairing
-  with pos as (
-    select member_id, name, net
-    from net_positions
-    where net > 0
-    order by net desc
-  ),
-  neg as (
-    select member_id, name, -net as net
-    from net_positions
-    where net < 0
-    order by net asc
-  ),
-  pairs as (
-    select
-      coalesce(
-        jsonb_agg(
-          jsonb_build_object(
-            'from_member_id', n.member_id,
-            'from_name', n.name,
-            'to_member_id', p.member_id,
-            'to_name', p.name,
-            'amount', least(p.net, n.net)
-          )
-          order by p.net desc, n.net asc
-        )
-        filter (where p.net > 0 and n.net > 0),
-        '[]'::jsonb
-      ) as transfers
-    from pos p, neg n
-    where not exists (
-      select 1 from pos p2 where p2.member_id != p.member_id and p2.net > p.net
-        and not exists (select 1 from neg n2 where n2.member_id != n.member_id and n2.net < n.net)
+  select jsonb_agg(
+    jsonb_build_object(
+      'member_id', member_id,
+      'name', name,
+      'total_paid', round(total_paid::numeric, 2),
+      'total_share', round(total_share::numeric, 2),
+      'net', round((total_paid - total_share)::numeric, 2),
+      'self_pay', round(self_pay::numeric, 2)
     )
-  )
-  select coalesce(transfers, '[]'::jsonb) into v_transfers from pairs;
+  ) into v_members
+  from member_totals;
 
-  insert into aa_results (room_id, version, results)
+  select
+    array_agg(elem) filter (where (elem->>'net')::numeric > 0.001),
+    array_agg(elem) filter (where (elem->>'net')::numeric < -0.001)
+  into v_net_positive, v_net_negative
+  from jsonb_array_elements(v_members) as elem;
+
+  v_transfers := '[]'::jsonb;
+
+  if v_net_positive is not null and v_net_negative is not null then
+    <<transfer_loop>>
+    for i in 1..coalesce(array_length(v_net_negative, 1), 0) loop
+      for j in 1..coalesce(array_length(v_net_positive, 1), 0) loop
+        continue when (v_net_negative[i]->>'net')::numeric >= 0
+                    or (v_net_positive[j]->>'net')::numeric <= 0;
+
+        v_to_amount := least(
+          abs((v_net_negative[i]->>'net')::numeric),
+          (v_net_positive[j]->>'net')::numeric
+        );
+
+        if v_to_amount > 0.001 then
+          v_transfers := v_transfers || jsonb_build_object(
+            'from_member_id', v_net_negative[i]->>'member_id',
+            'from_name', v_net_negative[i]->>'name',
+            'to_member_id', v_net_positive[j]->>'member_id',
+            'to_name', v_net_positive[j]->>'name',
+            'amount', round(v_to_amount, 2)
+          );
+
+          v_net_negative[i] := jsonb_set(
+            v_net_negative[i], '{net}',
+            to_jsonb(round(((v_net_negative[i]->>'net')::numeric + v_to_amount)::numeric, 2))
+          );
+          v_net_positive[j] := jsonb_set(
+            v_net_positive[j], '{net}',
+            to_jsonb(round(((v_net_positive[j]->>'net')::numeric - v_to_amount)::numeric, 2))
+          );
+        end if;
+      end loop;
+    end loop transfer_loop;
+  end if;
+
+  insert into aa_results (room_id, version, results, calculated_at)
   values (
     p_room_id,
     v_room_version,
-    jsonb_build_object('members', v_members, 'transfers', v_transfers)
+    jsonb_build_object('members', v_members, 'transfers', v_transfers),
+    now()
   )
   on conflict (room_id)
   do update set
-    version = excluded.version,
-    results = excluded.results,
+    version = v_room_version,
+    results = jsonb_build_object('members', v_members, 'transfers', v_transfers),
     calculated_at = now();
 
   return jsonb_build_object(
