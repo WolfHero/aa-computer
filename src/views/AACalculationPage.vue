@@ -2,10 +2,12 @@
   <div class="aa-page">
     <AppNavBar
       title="AA计算"
-      :right-actions="[
-        { text: '重新计算', onClick: onRecalculate },
-      ]"
+      :right-actions="rightActions"
     />
+
+    <div v-if="staleAA" class="stale-banner">
+      <van-icon name="warning-o" /> AA计算结果不是最新版本，本地账单数据有新变更，请手动计算或联系房主
+    </div>
 
     <AACalculationChart
       :loading="loading"
@@ -44,13 +46,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { showToast } from '@/utils/toast'
 import { useRooms } from '@/composables/useRooms'
 import { useAAResult } from '@/composables/useAAResult'
 import { useLocalBills } from '@/composables/useLocalBills'
 import { useLocalRooms } from '@/composables/useLocalRooms'
+import { useAuth } from '@/composables/useAuth'
 import { supabase } from '@/lib/supabaseClient'
 import AppNavBar from '@/components/AppNavBar.vue'
 import AACalculationChart from '@/components/AACalculationChart.vue'
@@ -60,18 +63,26 @@ import type { AAResult, Bill, RoomMember, RoomWithMembers } from '@/lib/types'
 const route = useRoute()
 const roomId = route.params.id as string
 const { getRoomById, getMyMemberRecord } = useRooms()
-const { getOrCalculateAA } = useAAResult()
+const { getOrCalculateAA, getLocalAAResult } = useAAResult()
 const { getBills } = useLocalBills()
-const { isRoomExpired } = useLocalRooms()
+const { getCachedRoom, markRoomExpired, isRoomExpired } = useLocalRooms()
+const { userId } = useAuth()
 
 const BILL_PAGE_SIZE = 10
 
 type MemberInfo = { id: string; name: string; user_id: string | null; is_unsubmitted: boolean; created_at: string }
 const loading = ref(true)
+const roomExpired = ref(false)
+const staleAA = ref(false)
 const aaResult = ref<AAResult | null>(null)
 const room = ref<RoomWithMembers | null>(null)
 const myMember = ref<MemberInfo | null>(null)
 const members = ref<Pick<RoomMember, 'id' | 'name'>[]>([])
+
+const rightActions = computed(() => {
+  if (roomExpired.value) return []
+  return [{ text: '重新计算', onClick: onRecalculate }]
+})
 const relatedBills = ref<Bill[]>([])
 const includeSelfPay = ref(true)
 const billListLoading = ref(false)
@@ -86,24 +97,51 @@ function isSelfPayBill(b: Bill) {
 async function loadData() {
   loading.value = true
   try {
-    room.value = await getRoomById(roomId)
-    myMember.value = room.value.members.find(m => m.user_id === myMember.value?.user_id) ?? null
-    if (!myMember.value) myMember.value = await getMyMemberRecord(roomId)
-    members.value = (room.value?.members ?? []).map(m => ({ id: m.id, name: m.name }))
-
-    const result = await getOrCalculateAA(roomId, room.value?.version ?? 0)
-    if ('results' in result && 'members' in result.results) {
-      aaResult.value = result as AAResult
-    } else {
-      aaResult.value = {
-        id: '',
-        room_id: roomId,
-        version: result.version,
-        results: result.results,
-        calculated_at: new Date().toISOString(),
+    // 如果房间已被标记为过期，直接走本地缓存，跳过所有网络请求
+    if (isRoomExpired(roomId)) {
+      const cached = getCachedRoom(roomId)
+      if (cached) {
+        room.value = cached
+        members.value = cached.members.map(m => ({ id: m.id, name: m.name }))
+        myMember.value = cached.members.find(m => m.user_id === userId.value) ?? null
+        roomExpired.value = true
+        aaResult.value = getLocalAAResult(roomId)
+        if (!aaResult.value) showToast('本地未找到AA计算结果')
+        else if (aaResult.value.version < room.value.version) staleAA.value = true
+        await loadRelatedBills(true)
+      } else {
+        showToast('房间不存在')
       }
+      loading.value = false
+      return
     }
 
+    room.value = await getRoomById(roomId)
+    myMember.value = room.value.members.find(m => m.user_id === userId.value) ?? null
+    if (!myMember.value) myMember.value = await getMyMemberRecord(roomId)
+    members.value = (room.value?.members ?? []).map(m => ({ id: m.id, name: m.name }))
+    roomExpired.value = false
+  } catch {
+    const cached = getCachedRoom(roomId)
+    if (cached) {
+      room.value = cached
+      members.value = cached.members.map(m => ({ id: m.id, name: m.name }))
+      myMember.value = cached.members.find(m => m.user_id === userId.value) ?? null
+      roomExpired.value = true
+      markRoomExpired(roomId)
+      aaResult.value = getLocalAAResult(roomId)
+      if (!aaResult.value) showToast('本地未找到AA计算结果')
+      else if (aaResult.value.version < room.value.version) staleAA.value = true
+      await loadRelatedBills(true)
+    } else {
+      showToast('房间不存在')
+    }
+    loading.value = false
+    return
+  }
+
+  try {
+    aaResult.value = await getOrCalculateAA(roomId, room.value?.version ?? 0)
     await loadRelatedBills(true)
   } catch (e: unknown) {
     showToast(e instanceof Error ? e.message : '加载失败')
@@ -122,6 +160,30 @@ async function loadRelatedBills(refresh = false) {
   }
 
   billListLoading.value = true
+  const memberId = myMember.value.id
+
+  // 过期房间：从本地账单列表中筛选，伪分页
+  if (roomExpired.value) {
+    const allBills = getBills(roomId).filter(
+      b => (b.shared_by.includes(memberId) || b.created_by === memberId)
+        && (includeSelfPay.value || !isSelfPayBill(b))
+    )
+    allBills.sort((a, b) => ((b.paid_at ?? b.created_at) > (a.paid_at ?? a.created_at) ? 1 : -1))
+
+    const from = billPage * BILL_PAGE_SIZE
+    const page = allBills.slice(from, from + BILL_PAGE_SIZE)
+    if (refresh) {
+      relatedBills.value = page
+    } else {
+      relatedBills.value = [...relatedBills.value, ...page]
+    }
+    if (from + BILL_PAGE_SIZE >= allBills.length) {
+      billListFinished.value = true
+    }
+    billPage++
+    billListLoading.value = false
+    return
+  }
 
   const from = billPage * BILL_PAGE_SIZE
   const query = supabase
@@ -153,7 +215,6 @@ async function loadRelatedBills(refresh = false) {
   billPage++
 
   // Merge with local unsynced bills
-  const memberId = myMember.value.id
   let local = getBills(roomId).filter(
     b => !b.synced && (b.shared_by.includes(memberId) || b.created_by === memberId)
     && (includeSelfPay.value || !isSelfPayBill(b))
@@ -189,18 +250,7 @@ async function onRecalculate() {
       await loadRelatedBills()
     }
 
-    const result = await getOrCalculateAA(roomId, -1) // force recalculate
-    if ('results' in result && 'members' in result.results) {
-      aaResult.value = result as AAResult
-    } else {
-      aaResult.value = {
-        id: '',
-        room_id: roomId,
-        version: result.version,
-        results: result.results,
-        calculated_at: new Date().toISOString(),
-      }
-    }
+    aaResult.value = await getOrCalculateAA(roomId, -1) // force recalculate
     showToast('已重新计算')
   } catch (e: unknown) {
     showToast(e instanceof Error ? e.message : '计算失败')
@@ -235,5 +285,14 @@ onMounted(() => {
   text-align: center;
   padding: 40px;
   color: var(--color-text-secondary);
+}
+.stale-banner {
+  padding: 12px 16px;
+  background: #fff7e6;
+  color: #e6a23c;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 </style>

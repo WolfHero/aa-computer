@@ -95,3 +95,7 @@ export interface CachedRoom {
 export interface LocalRoomStore {
   [roomId: string]: CachedRoom
 }
+
+export interface LocalAAResultStore {
+  [roomId: string]: AAResult
+}

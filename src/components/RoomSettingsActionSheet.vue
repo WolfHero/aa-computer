@@ -44,6 +44,7 @@ const { submitBills } = useRemoteBills()
 const actions = computed(() => {
   if (props.localOnly) {
     return [
+      { name: '计算AA', key: 'aa' },
       { name: props.sortMode === 'created_at' ? '切换为按付款时间排序' : '切换为按创建时间排序', key: 'sort' },
       { name: '房间设置', key: 'settings' },
       { name: '删除本地数据', key: 'delete-local', color: '#ee0a24' },
