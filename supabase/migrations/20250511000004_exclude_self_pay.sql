@@ -5,6 +5,7 @@ create or replace function calculate_aa(p_room_id uuid)
 returns jsonb
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 declare
   v_room_version int;

@@ -97,6 +97,7 @@ export function useLocalBills() {
 
   /** Replace cached synced bills with fresh server data, preserving unsynced local bills */
   function syncBillsFromServer(roomId: string, serverBills: any[]) {
+    if (serverBills.length === 0 && !store[roomId]) return
     const localBills = store[roomId] ?? []
     const unsynced = localBills.filter(b => !b.synced)
     store[roomId] = [

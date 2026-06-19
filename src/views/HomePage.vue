@@ -5,7 +5,7 @@
       :show-back="false"
       :right-actions="[
         { text: '新增房间', onClick: () => showCreateDialog = true },
-        { text: '关于', onClick: () => showActionSheet = true },
+        { text: '设置', onClick: () => showActionSheet = true },
       ]"
     />
 
@@ -23,19 +23,22 @@
 
         <template v-else>
           <van-cell
-            v-for="room in rooms"
+            v-for="room in mergedRooms"
             :key="room.id"
-            :title="room.name"
             :label="room.description || '暂无简介'"
             is-link
-            @click="router.push(`/room/${room.id}`)"
+            @click="router.push({ path: `/room/${room.id}`, state: { roomName: room.name } })"
           >
+            <template #title>
+              {{ room.name }}
+              <span v-if="!remoteRoomIds.has(room.id)" class="local-badge">本地</span>
+            </template>
             <template #value>
               <span class="member-count">{{ room.members?.length ?? 0 }} 人</span>
             </template>
           </van-cell>
 
-          <div v-if="rooms.length === 0" class="empty-state">
+          <div v-if="mergedRooms.length === 0" class="empty-state">
             <van-icon name="plus" size="48" color="#c8c9cc" />
             <p>点击右上角「新增」创建房间</p>
           </div>
@@ -47,7 +50,7 @@
 
     <van-back-top />
 
-    <RoomCreateDialog v-model:show="showCreateDialog" @created="onRefresh" />
+    <RoomCreateDialog v-model:show="showCreateDialog" @created="onRoomCreated" />
     <van-action-sheet
       v-model:show="showActionSheet"
       :actions="settingsActions"
@@ -57,39 +60,161 @@
       @select="onSettingsSelect"
     />
 
-    <van-dialog v-model:show="showPrivacyDialog" title="隐私政策" show-cancel-button confirm-button-text="知道了">
-      <div class="privacy-content">
-        <p>本APP用于便捷的计算多人活动AA时导致的算账难问题。</p>
-        <p>本APP不需要登录，也不存储任何敏感信息。</p>
-        <p>长时间不更新的用户、房间以及账单记录会自动清空，请大家及时完成转账或截图备份。</p>
-        <p>项目在GitHub上开源，作者主页：<a href="https://github.com/WolfHero" target="_blank">https://github.com/WolfHero</a>，多平台同名。</p>
+    <PrivacyDialog v-model:show="showPrivacyDialog" />
+
+    <van-dialog
+      v-model:show="showImportWarning"
+      title="警告"
+      message="本操作会使本地数据清空并无法找回，确定继续吗？"
+      show-cancel-button
+      confirm-button-text="确认登录"
+      @confirm="showImportWarning = false; showImportDialog = true"
+    />
+
+    <van-dialog
+      v-model:show="showImportDialog"
+      title="从其他设备登录"
+      show-cancel-button
+      confirm-button-text="登录"
+      @confirm="onImportConfirm"
+    >
+      <div class="import-form">
+        <van-field
+          v-model="importToken"
+          label="登录凭证"
+          placeholder="请输入从其他设备复制的登录凭证"
+          type="textarea"
+          rows="3"
+          autosize
+        />
       </div>
     </van-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast } from '@/utils/toast'
+import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
+import { useLocalRooms } from '@/composables/useLocalRooms'
+import { STORAGE_KEYS } from '@/utils/constants'
 import AppNavBar from '@/components/AppNavBar.vue'
 import RoomCreateDialog from '@/components/RoomCreateDialog.vue'
+import PrivacyDialog from '@/components/PrivacyDialog.vue'
 
 const router = useRouter()
+const { userId, getRefreshToken, refreshSession } = useAuth()
 const { rooms, loading, finished, fetchRooms } = useRooms()
+const { getAllCachedRooms } = useLocalRooms()
+
+const remoteRoomIds = computed(() => new Set(rooms.value.map(r => r.id)))
+const mergedRooms = computed(() => {
+  const remote = rooms.value
+  const localOnly = getAllCachedRooms().filter(r => !remoteRoomIds.value.has(r.id))
+  return [...remote, ...localOnly]
+})
 const refreshing = ref(false)
 const listLoading = ref(false)
 const showCreateDialog = ref(false)
 const showActionSheet = ref(false)
 const showPrivacyDialog = ref(false)
+const showImportDialog = ref(false)
+const showImportWarning = ref(false)
+const importToken = ref('')
 
 const settingsActions = [
+  { name: '登录当前账号到其他设备', key: 'copyToken' },
+  { name: '从其他设备登录账号', key: 'importToken' },
   { name: '隐私政策', key: 'privacy' },
 ]
 
+function findSupabaseAuthKey(): string | null {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key?.startsWith('sb-') && key.endsWith('-auth-token')) {
+      return key
+    }
+  }
+  return null
+}
+
+async function onCopyToken() {
+  const token = await getRefreshToken()
+  if (!token) {
+    showToast('当前未登录，请先创建房间')
+    return
+  }
+  await navigator.clipboard.writeText(token)
+  showToast('登录凭证已复制到剪贴板，请妥善保管')
+}
+
+async function onImportConfirm() {
+  const inputToken = importToken.value.trim()
+  if (!inputToken) {
+    showToast('请输入登录凭证')
+    return
+  }
+
+  const currentToken = await getRefreshToken()
+  if (inputToken === currentToken) {
+    showToast('该凭证为当前账号，无需登录')
+    showImportDialog.value = false
+    importToken.value = ''
+    return
+  }
+
+  const oldUserId = userId.value
+
+  const billsBackup = localStorage.getItem(STORAGE_KEYS.LOCAL_BILLS)
+  const authKey = findSupabaseAuthKey()
+  const authBackup = authKey ? localStorage.getItem(authKey) : null
+
+  if (billsBackup) {
+    localStorage.setItem(STORAGE_KEYS.OLD_LOCAL_BILLS, billsBackup)
+  }
+  if (authBackup) {
+    localStorage.setItem(STORAGE_KEYS.OLD_AUTH_TOKEN, authBackup)
+  }
+
+  try {
+    await refreshSession(inputToken)
+    showImportDialog.value = false
+    importToken.value = ''
+
+    if (userId.value === oldUserId) {
+      localStorage.removeItem(STORAGE_KEYS.OLD_LOCAL_BILLS)
+      localStorage.removeItem(STORAGE_KEYS.OLD_AUTH_TOKEN)
+      showToast('登录成功')
+    } else {
+      const newAuthKey = findSupabaseAuthKey()
+      const newAuthValue = newAuthKey ? localStorage.getItem(newAuthKey) : null
+      localStorage.clear()
+      if (newAuthKey && newAuthValue) {
+        localStorage.setItem(newAuthKey, newAuthValue)
+      }
+      location.reload()
+      return
+    }
+    await fetchRooms(true)
+  } catch (e: unknown) {
+    localStorage.removeItem(STORAGE_KEYS.OLD_LOCAL_BILLS)
+    localStorage.removeItem(STORAGE_KEYS.OLD_AUTH_TOKEN)
+    showToast(e instanceof Error ? e.message : '登录失败')
+  }
+}
+
 function onSettingsSelect(action: { key: string }) {
-  if (action.key === 'privacy') {
+  if (action.key === 'copyToken') {
+    onCopyToken()
+  } else if (action.key === 'importToken') {
+    if (userId.value) {
+      showImportWarning.value = true
+    } else {
+      showImportDialog.value = true
+    }
+  } else if (action.key === 'privacy') {
     showPrivacyDialog.value = true
   }
   showActionSheet.value = false
@@ -113,7 +238,14 @@ async function onRefresh() {
   refreshing.value = false
 }
 
+function onRoomCreated(roomId: string) {
+  router.push({ path: `/room/${roomId}/settings` })
+}
+
 onMounted(() => {
+  if (!localStorage.getItem(STORAGE_KEYS.PRIVACY_ACCEPTED)) {
+    showPrivacyDialog.value = true
+  }
   fetchRooms(true)
 })
 
@@ -137,19 +269,23 @@ onMounted(() => {
   font-size: 12px;
   color: var(--color-text-secondary);
 }
+.local-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 18px;
+  border-radius: 4px;
+  background: #fff7e6;
+  color: #fa8c16;
+}
 .loading-state {
   text-align: center;
   padding: 40px 16px;
   color: var(--color-text-secondary);
   font-size: 14px;
 }
-.privacy-content {
-  padding: 0 20px 16px;
-  font-size: 14px;
-  line-height: 1.8;
-  color: var(--color-text-secondary);
-}
-.privacy-content a {
-  color: #1989fa;
+.import-form {
+  padding: 12px 16px 0;
 }
 </style>

@@ -11,6 +11,10 @@
         <span class="summary-label">你支付的金额</span>
         <span class="summary-value">{{ formatCurrency(myResult?.total_paid ?? 0) }}</span>
       </div>
+      <div class="summary-row">
+        <span class="summary-label">你应承担的金额</span>
+        <span class="summary-value">{{ formatCurrency(myShare) }}</span>
+      </div>
       <div class="summary-row" :class="netClass">
         <span class="summary-label">{{ netLabel }}</span>
         <span class="summary-value">{{ formatCurrency(Math.abs(myResult?.net ?? 0)) }}</span>
@@ -63,6 +67,11 @@ const totalAmount = computed(() => {
 const myResult = computed<AAMemberResult | undefined>(() => {
   if (!props.result?.results?.members || !props.currentMemberId) return undefined
   return props.result.results.members.find(m => m.member_id === props.currentMemberId)
+})
+
+const myShare = computed(() => {
+  if (!myResult.value) return 0
+  return myResult.value.total_paid - myResult.value.net
 })
 
 const netLabel = computed(() => {

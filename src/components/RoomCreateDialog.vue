@@ -7,17 +7,15 @@
     @closed="resetForm"
     @update:show="emit('update:show', $event)"
   >
-    <van-form @submit="onSubmit" class="dialog-form">
+    <van-form @submit="onSubmit" class="dialog-form" autocomplete="off">
       <van-field
         v-model="form.name"
         name="name"
         label="房间名称"
         placeholder="请输入房间名称"
         maxlength="20"
-        :rules="[
-          { required: true, message: '请输入房间名称' },
-          { max: 20, message: '房间名称不能超过20个字符' },
-        ]"
+        autocomplete="off"
+        :rules="[{ required: true, message: '请输入房间名称' }]"
       />
       <van-field
         v-model="form.description"
@@ -27,17 +25,16 @@
         rows="2"
         autosize
         type="textarea"
+        autocomplete="off"
       />
       <van-field
         v-model="form.creatorName"
         name="creatorName"
-        label="你的名字"
-        placeholder="请输入你的名字"
+        label="昵称"
+        placeholder="请输入昵称"
         maxlength="20"
-        :rules="[
-          { required: true, message: '请输入你的名字' },
-          { max: 20, message: '名字不能超过20个字符' },
-        ]"
+        autocomplete="off"
+        :rules="[{ required: true, message: '请输入昵称，别人会看到这个代号' }]"
       />
       <div style="margin: 16px">
         <van-button round block type="primary" native-type="submit" :loading="submitting">
@@ -50,15 +47,17 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { showToast } from 'vant'
+import { showToast } from '@/utils/toast'
+import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
 
 const props = withDefaults(defineProps<{ show?: boolean }>(), { show: false })
 const emit = defineEmits<{
   'update:show': [value: boolean]
-  created: []
+  created: [roomId: string]
 }>()
 
+const { ensureAuth } = useAuth()
 const { createRoom } = useRooms()
 const submitting = ref(false)
 
@@ -77,10 +76,11 @@ function resetForm() {
 async function onSubmit() {
   submitting.value = true
   try {
-    await createRoom(form.name, form.description, form.creatorName)
+    await ensureAuth()
+    const { room } = await createRoom(form.name, form.description, form.creatorName)
     showToast('房间创建成功')
     emit('update:show', false)
-    emit('created')
+    emit('created', room.id)
   } catch (e: unknown) {
     showToast(e instanceof Error ? e.message : '创建失败')
   } finally {

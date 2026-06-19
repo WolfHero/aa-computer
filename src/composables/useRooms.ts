@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
 import { useAuth } from './useAuth'
 import { ROOM_PAGE_SIZE } from '@/utils/constants'
-import type { Room, RoomMember, RoomWithMembers } from '@/lib/types'
+import type { RoomMember, RoomWithMembers } from '@/lib/types'
 
 export function useRooms() {
   const { userId } = useAuth()
@@ -14,6 +14,10 @@ export function useRooms() {
   let cachedUserRoomIds: string[] | null = null
 
   async function fetchRooms(refresh = false) {
+    if (!userId.value) {
+      finished.value = true
+      return
+    }
     if (refresh) {
       page.value = 0
       finished.value = false
@@ -68,7 +72,7 @@ export function useRooms() {
 
     const { error: roomError } = await supabase
       .from('rooms')
-      .insert({ id: roomId, name, description })
+      .insert({ id: roomId, name, description, owner_id: userId.value! })
     if (roomError) throw roomError
 
     const { data: member, error: memberError } = await supabase
@@ -139,9 +143,57 @@ export function useRooms() {
     if (updateError) throw updateError
   }
 
+  // --- Owner management functions ---
+
+  async function addMember(roomId: string, name: string) {
+    const { data, error } = await supabase
+      .from('room_members')
+      .insert({ room_id: roomId, user_id: null, name })
+      .select()
+      .single()
+    if (error) throw error
+    return data as RoomMember
+  }
+
+  async function updateMemberName(memberId: string, name: string) {
+    const { error } = await supabase
+      .from('room_members')
+      .update({ name })
+      .eq('id', memberId)
+    if (error) throw error
+  }
+
+  async function removeMember(memberId: string) {
+    const { error } = await supabase
+      .from('room_members')
+      .delete()
+      .eq('id', memberId)
+    if (error) throw error
+  }
+
+  async function generateInviteToken(memberId: string) {
+    const { data, error } = await supabase.rpc('generate_member_invite_token', { p_member_id: memberId })
+    if (error) throw error
+    return data as string
+  }
+
+  async function getMemberByInviteToken(token: string) {
+    const { data, error } = await supabase.rpc('get_member_by_invite_token', { p_token: token })
+    if (error) throw error
+    return data as { id: string; name: string; room_id: string; room_name: string; room_owner_id: string; is_bound: boolean; creator_name: string } | null
+  }
+
+  async function acceptInvite(token: string) {
+    const { data, error } = await supabase.rpc('accept_invite', { p_token: token })
+    if (error) throw error
+    return data as { success: boolean; error?: string; member_id?: string; name?: string; room_id?: string }
+  }
+
   return {
     rooms, loading, finished, page,
     fetchRooms, createRoom, joinRoom, getRoomById,
     getMyMemberRecord, setUnsubmitted, incrementRoomVersion,
+    addMember, updateMemberName, removeMember,
+    generateInviteToken, getMemberByInviteToken, acceptInvite,
   }
 }

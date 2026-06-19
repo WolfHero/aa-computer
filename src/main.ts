@@ -22,6 +22,7 @@ import {
   TimePicker,
   Picker,
   BackTop,
+  Loading,
   setToastDefaultOptions,
 } from 'vant'
 import 'vant/lib/index.css'
@@ -51,6 +52,7 @@ app.use(DatePicker)
 app.use(TimePicker)
 app.use(Picker)
 app.use(BackTop)
+app.use(Loading)
 
 setToastDefaultOptions({ duration: 2000 })
 

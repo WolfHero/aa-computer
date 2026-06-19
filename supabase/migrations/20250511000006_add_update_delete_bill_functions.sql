@@ -12,6 +12,7 @@ create or replace function update_bill(
 returns void
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 begin
   if not exists (select 1 from room_members where room_id = p_room_id and user_id = auth.uid()::text) then
@@ -42,6 +43,7 @@ create or replace function delete_bill(
 returns void
 language plpgsql
 security definer
+set search_path = 'public'
 as $$
 begin
   if not exists (select 1 from room_members where room_id = p_room_id and user_id = auth.uid()::text) then

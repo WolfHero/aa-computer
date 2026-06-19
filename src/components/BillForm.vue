@@ -8,13 +8,14 @@
     @closed="onClosed"
     @update:show="emit('update:show', $event)"
   >
-    <van-form ref="formRef" @submit="onSubmit" class="dialog-form">
+    <van-form ref="formRef" @submit="onSubmit" class="dialog-form" autocomplete="off">
       <van-field
         v-model="form.content"
         name="content"
         label="付款内容"
         placeholder="请输入付款内容"
         maxlength="80"
+        autocomplete="off"
         :rules="[
           { required: true, message: '请输入付款内容' },
           { validator: validateContent, message: '付款内容过长（汉字40字/字母80字）' },
@@ -25,8 +26,9 @@
         name="amount"
         label="付款金额"
         placeholder="请输入金额"
-        type="digit"
+        type="number"
         maxlength="13"
+        autocomplete="off"
         :rules="[
           { required: true, message: '请输入金额' },
           { pattern: /^\d{1,10}(\.\d{1,2})?$/, message: '金额格式不正确（最多10位整数+2位小数）' },
@@ -123,7 +125,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue'
-import { showToast } from 'vant'
+import { showToast } from '@/utils/toast'
 import dayjs from 'dayjs'
 import { supabase } from '@/lib/supabaseClient'
 import { useLocalBills } from '@/composables/useLocalBills'
@@ -172,8 +174,6 @@ const submitting = ref(false)
 const showDatePicker = ref(false)
 const showTimePicker = ref(false)
 const formRef = ref()
-
-const defaultSharedBy = ref<string[]>([])
 
 const todayStr = new Date().toISOString().slice(0, 10)
 const defaultTime = '08:00'
