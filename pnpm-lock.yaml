@@ -14,12 +14,21 @@ importers:
       '@vant/touch-emulator':
         specifier: ^1.5.0
         version: 1.5.0
+      ag-grid-community:
+        specifier: 35.3.1
+        version: 35.3.1
+      ag-grid-vue3:
+        specifier: ^35.3.1
+        version: 35.3.1(vue@3.5.34(typescript@5.8.3))
       dayjs:
         specifier: ^1.11.20
         version: 1.11.20
       echarts:
         specifier: ^6.0.0
         version: 6.0.0
+      papaparse:
+        specifier: ^5.5.4
+        version: 5.5.4
       vant:
         specifier: ^4.9.24
         version: 4.9.24(vue@3.5.34(typescript@5.8.3))
@@ -29,6 +38,9 @@ importers:
       vue-router:
         specifier: ^4.6.4
         version: 4.6.4(vue@3.5.34(typescript@5.8.3))
+      xlsx:
+        specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+        version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
     devDependencies:
       '@playwright/test':
         specifier: ^1.60.0
@@ -902,6 +914,17 @@ packages:
   adm-zip@0.5.17:
     resolution: {integrity: sha512-+Ut8d9LLqwEvHHJl1+PIHqoyDxFgVN847JTVM3Izi3xHDWPE4UtzzXysMZQs64DMcrJfBeS/uoEP4AD3HQHnQQ==}
     engines: {node: '>=12.0'}
+
+  ag-charts-types@13.3.1:
+    resolution: {integrity: sha512-m37eUe4g//swvGh8PWMlYQH3gknjSsPeW4sQwBhM3/auGAHmN0wvxEWlrdAn98pBPg4HoKbtOy+yf7gPCYsnvQ==}
+
+  ag-grid-community@35.3.1:
+    resolution: {integrity: sha512-Wmkd/xYTCbAApcZZO74nBggZCnd/oX753NY3MJ4zYARVpfBHRWWhIBJ2sFTFKbDWwHZOWsx3YT9+kkyeuyLKlw==}
+
+  ag-grid-vue3@35.3.1:
+    resolution: {integrity: sha512-zbx6k2WIeIBhzgbiHjZbPaA2y7n1qOzK81nrdwlAhkRnIU3LL6nu1ZGpvShpyYyYKr6OQlwLl/q0IYuTmxJEdg==}
+    peerDependencies:
+      vue: ^3.5.32
 
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
@@ -1855,6 +1878,9 @@ packages:
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
 
+  papaparse@5.5.4:
+    resolution: {integrity: sha512-SwzWD9gl/ElwYLCI0nUja1mFJzjq2D8ziShfNBa7zCHzkOozeOGDwHWQ+tvCzEZcewecWZ5U7kUopDnG+DFYEQ==}
+
   parse-node-version@1.0.1:
     resolution: {integrity: sha512-3YHlOa/JgH6Mnpr05jP9eDG254US9ek25LyIxZlDItp2iJtwyaXQb57lBYLdT3MowkUFYEV2XXNAYIPlESvJlA==}
     engines: {node: '>= 0.10'}
@@ -2414,6 +2440,12 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz:
+    resolution: {integrity: sha512-oLDq3jw7AcLqKWH2AhCpVTZl8mf6X2YReP+Neh0SJUzV/BdZYjth94tG5toiMB1PPrYtxOCfaoUCkvtuH+3AJA==, tarball: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz}
+    version: 0.20.3
+    engines: {node: '>=0.8'}
+    hasBin: true
 
   xml2js@0.4.23:
     resolution: {integrity: sha512-ySPiMjM0+pLDftHgXY4By0uswI3SPKLDw/i3UXbnO8M/p28zqexCUoPmQFrYD+/1BzhGJSs2i1ERWKJAtiLrug==}
@@ -3353,6 +3385,17 @@ snapshots:
       vue: 3.5.34(typescript@5.8.3)
 
   adm-zip@0.5.17: {}
+
+  ag-charts-types@13.3.1: {}
+
+  ag-grid-community@35.3.1:
+    dependencies:
+      ag-charts-types: 13.3.1
+
+  ag-grid-vue3@35.3.1(vue@3.5.34(typescript@5.8.3)):
+    dependencies:
+      ag-grid-community: 35.3.1
+      vue: 3.5.34(typescript@5.8.3)
 
   agent-base@7.1.4: {}
 
@@ -4379,6 +4422,8 @@ snapshots:
 
   package-json-from-dist@1.0.1: {}
 
+  papaparse@5.5.4: {}
+
   parse-node-version@1.0.1: {}
 
   patch-console@2.0.0: {}
@@ -4894,6 +4939,8 @@ snapshots:
       signal-exit: 4.1.0
 
   ws@8.20.0: {}
+
+  xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz: {}
 
   xml2js@0.4.23:
     dependencies:

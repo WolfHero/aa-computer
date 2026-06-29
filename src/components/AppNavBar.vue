@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<{
   title: string
   showBack?: boolean
   backTo?: string
+  onBack?: () => void
   rightActions?: NavAction[]
 }>(), {
   showBack: true,
@@ -47,7 +48,9 @@ const activeBtn = ref<string | null>(null)
 
 function onClickLeft() {
   if (!props.showBack) return
-  if (props.backTo) {
+  if (props.onBack) {
+    props.onBack()
+  } else if (props.backTo) {
     router.replace(props.backTo)
   } else {
     router.back()
