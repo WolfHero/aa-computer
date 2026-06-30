@@ -190,6 +190,7 @@ const myMemberId = ref('')
 const step = ref(0) // 0=file pick, 1=grid+mapping, 2=card preview
 const fileInput = ref<HTMLInputElement | null>(null)
 const parsedData = ref<(string | null)[][]>([])
+const parsedColWidths = ref<number[] | null>(null) // from XLSX !cols
 const allParsedSheets = ref<ParsedSheet[]>([])
 const showSheetPicker = ref(false)
 const sheetActions = ref<{ name: string; key: string }[]>([])
@@ -282,11 +283,18 @@ const columnDefs = computed(() => {
   })
   for (let i = 0; i < maxCols; i++) {
     const colIdx = i
+    let width: number | undefined
+    if (parsedColWidths.value) {
+      width = parsedColWidths.value[i]
+      if (width === 0 || width === undefined) width = undefined
+    } else {
+      width = i === 0 ? 150 : 100
+    }
     cols.push({
       headerName: toAlphaCol(i),
       field: `col_${i}`,
       colId: `col_${i}`,
-      width: i === 0 ? 150 : undefined,
+      width,
       cellClassRules: {
         'cell-highlighted': (params: any) => {
           const key = `${colIdx}_${params.rowIndex}`
@@ -373,6 +381,7 @@ async function onFileSelected(e: Event) {
       allParsedSheets.value = sheets
       if (sheets.length === 1) {
         parsedData.value = sheets[0]!.data
+        parsedColWidths.value = sheets[0]!.colWidths ?? null
         step.value = 1
       } else {
         sheetActions.value = sheets.map(s => ({ name: s.name, key: s.name }))
@@ -381,6 +390,7 @@ async function onFileSelected(e: Event) {
     } else {
       const text = await file.text()
       parsedData.value = parseCsv(text)
+      parsedColWidths.value = null // CSV uses fixed widths
       if (parsedData.value.length === 0) {
         showToast('文件内容为空')
         return
@@ -399,6 +409,7 @@ function onSheetSelected(action: { key: string }) {
   const sheet = allParsedSheets.value.find(s => s.name === action.key)
   if (sheet) {
     parsedData.value = sheet.data
+    parsedColWidths.value = sheet.colWidths ?? null
     step.value = 1
   }
   showSheetPicker.value = false
