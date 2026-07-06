@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm dev` — Start Vite dev server
 - `pnpm build` — Type-check with vue-tsc + Vite build
 - `pnpm preview` — Preview production build
-- `pnpm exec playwright test` — Run all E2E tests (needs dev server + Supabase running)
+- `pnpm exec playwright test` — Run all E2E tests (needs dev server + Supabase running). Tests in `e2e/`: `aa-calculation.spec.ts`, `local-persistence.spec.ts`, `member-management.spec.ts`, `debug.spec.ts`
 - `pnpm exec playwright test --grep "test-name-pattern"` — Run specific E2E tests
 - Supabase: use `npx supabase` commands (local instance at `http://127.0.0.1:54321`)
 - `npx supabase db reset` — Reset local DB and re-run all migrations
@@ -28,7 +28,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Supabase (PostgreSQL + anonymous auth + RLS)
 - Supabase client at `src/lib/supabaseClient.ts` (reads `VITE_SUPABASE_URL` + `VITE_SUPABASE_KEY` from env)
 - Offline-first: localStorage via `useLocalBills` + `useLocalRooms` composables
-- `src/utils/` — `constants.ts` (storage keys, page sizes), `format.ts` (currency, date), `toast.ts` (Vant toast wrapper)
+- `ag-grid-community` + `ag-grid-vue3` (import preview grid in ImportPage)
+- `papaparse` (CSV parsing), `xlsx` (SheetJS, XLSX parsing)
+- `dayjs` (date parsing in ImportPage with custom format plugin)
+- `src/utils/` — `constants.ts` (storage keys, page sizes), `format.ts` (currency, date), `toast.ts` (Vant toast wrapper), `importParser.ts` (XLSX/CSV → `ParsedSheet[]`)
 
 ### Routes (src/router/index.ts)
 | Path | Page | Purpose |
@@ -39,6 +42,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `/room/:id` | RoomDetailPage | Bill list (paginated), add/edit/delete bills, submit to server |
 | `/room/:id/aa` | AACalculationPage | AA result chart + related bills list |
 | `/room/:id/settings` | RoomSettingsPage | Room info, member list (owner CRUD, invite links), delete local data |
+| `/room/:id/import` | ImportPage | Import bills from XLSX/CSV (AG-Grid preview, column mapping, filter conditions) |
 
 ### Data Flow
 1. **Bills**: Created locally → saved to localStorage → "提交付账记录" pushes to Supabase → marks synced → increments room version
@@ -66,6 +70,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Expired rooms: read-only (no add/edit buttons, no "新增" in nav bar, expired banner shown), data persists locally
 - HomePage merges `useRooms.rooms` (remote) + `useLocalRooms.getAllCachedRooms()` (local-only), shows "本地" badge on local-only rooms
 
+### Import Feature (XLSX/CSV → Bills)
+- Route: `/room/:id/import` — 3-step wizard: (0) file pick, (1) AG-Grid preview + column mapping + filter conditions, (2) editable card list review → save
+- `src/utils/importParser.ts`: `parseXlsx()` (SheetJS, extracts native col widths via `cellStyles` + `wpx`/`wch`), `parseCsv()` (papaparse)
+- **Column mapping**: time position (e.g. `A2` = col A row 2), content position (single col `E` or combined `E+F`), amount position (single col `G`)
+- **Filter conditions**: visual builder (添加条件), each row has column picker + operator (>=/<=/==/!=) + value, rows chained with AND/OR connectors
+- **Date parsing**: supports `YYYY-M-D HH:mm`, `YYYY/MM/DD`, serial Excel date numbers, Chinese date chars (年月日)
+- **Save flow**: `addBills()` → localStorage → `submitBills()` push to Supabase → navigate back to room detail
+- Uses AG-Grid (AllCommunityModule) for data preview with highlighted mapping cells, AG-Grid theme `legacy`
+- AG-Grid overrides in global `<style>` for compact cell rendering (line-height: 28px, 12px font)
+
 ### Key Patterns
 - **van-list pagination**: `immediate-check="false"` to prevent double-fetch on mount; `@load` handler increments page; `finished` when returned data < page size
 - **Bill sync**: Local bills have `synced: false` until submitted. Merged views show unsynced local first, then remote synced
@@ -87,6 +101,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `BillCard` — Bill display card with shared member tags, sync status badge, self-pay strikethrough
 - `BillForm` — Vant dialog form for create/edit (content, amount, date, shared member checkboxes); includes delete button when editing
 - `BillFilter` — Search bar (1s debounce) + creator/date range filters
+- `ImportBillCard` — Editable card for each imported bill row (content, amount, date, shared member checkboxes, raw data detail popup)
 - `AACalculationChart` — ECharts nested pie (outer: my payment vs others; inner: receivable/payable) + transfers list
 - `RoomCreateDialog` — Dialog for creating new rooms (name, description, creator nickname)
 - `RoomSettingsActionSheet` — Action sheet with sort toggle, submit bills, AA calculate, settings, delete local
