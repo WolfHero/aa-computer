@@ -41,6 +41,20 @@ export function useLocalBills() {
     return newBill
   }
 
+  function addBills(roomId: string, bills: Omit<Bill, 'local_id' | 'synced' | 'created_at'>[]) {
+    if (bills.length === 0) return []
+    const newBills: Bill[] = bills.map(b => ({
+      ...b,
+      local_id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      synced: false,
+    }))
+    if (!store[roomId]) store[roomId] = []
+    store[roomId].push(...newBills)
+    persist()
+    return newBills
+  }
+
   function updateBill(roomId: string, localId: string, updates: Partial<Bill>) {
     const bills = store[roomId]
     if (!bills) return
@@ -118,7 +132,7 @@ export function useLocalBills() {
   }
 
   return {
-    getBills, addBill, updateBill, deleteBill,
+    getBills, addBill, addBills, updateBill, deleteBill,
     getUnsyncedBills, markAsSynced, mergeFetchedBills, syncBillsFromServer, clearRoom, getLocalBillCount,
   }
 }

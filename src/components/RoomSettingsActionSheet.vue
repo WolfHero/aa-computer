@@ -58,6 +58,7 @@ const actions = computed(() => {
   // if (!props.roomExpired) {
   //   list.push({ name: '强制提交付账记录', key: 'submit' })
   // }
+  list.push({ name: '导入账单', key: 'import-bills' })
   list.push({ name: '房间设置', key: 'settings' })
   return list
 })
@@ -88,6 +89,9 @@ async function onSelect(action: { key: string }) {
       } catch (e: unknown) {
         showToast(e instanceof Error ? e.message : '提交失败')
       }
+      break
+    case 'import-bills':
+      router.push(`/room/${props.roomId}/import`)
       break
     case 'settings':
       router.push(`/room/${props.roomId}/settings`)

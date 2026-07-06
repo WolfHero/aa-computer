@@ -99,3 +99,19 @@ export interface LocalRoomStore {
 export interface LocalAAResultStore {
   [roomId: string]: AAResult
 }
+
+export interface ImportBillData {
+  localId: string
+  content: string
+  amount: number
+  paidAt: string
+  sharedBy: string[]
+  createdBy: string
+  rawRow: string
+}
+
+export interface ColumnMapping {
+  timePos: string
+  contentPos: string
+  amountPos: string
+}

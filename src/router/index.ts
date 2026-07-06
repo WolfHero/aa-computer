@@ -33,6 +33,11 @@ const router = createRouter({
       name: 'room-settings',
       component: () => import('@/views/RoomSettingsPage.vue'),
     },
+    {
+      path: '/room/:id/import',
+      name: 'room-import',
+      component: () => import('@/views/ImportPage.vue'),
+    },
   ],
 })
 
