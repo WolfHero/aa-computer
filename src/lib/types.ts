@@ -114,5 +114,4 @@ export interface ColumnMapping {
   timePos: string
   contentPos: string
   amountPos: string
-  filter: string
 }

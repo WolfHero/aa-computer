@@ -58,7 +58,7 @@
           <van-field
             v-model="mapping.timePos"
             label="付款时间位置"
-            placeholder="如 A26"
+            placeholder="如 A2 （A是列号，2是行号）"
             clearable
             :error="mappingErrors.timePos !== ''"
             :error-message="mappingErrors.timePos"
@@ -69,7 +69,7 @@
           <van-field
             v-model="mapping.contentPos"
             label="付款内容位置"
-            placeholder="如 E26 或 E26+F26"
+            placeholder="如 E 或 E+F"
             clearable
             :error="mappingErrors.contentPos !== ''"
             :error-message="mappingErrors.contentPos"
@@ -80,7 +80,7 @@
           <van-field
             v-model="mapping.amountPos"
             label="付款金额位置"
-            placeholder="如 G26"
+            placeholder="如 G"
             clearable
             :error="mappingErrors.amountPos !== ''"
             :error-message="mappingErrors.amountPos"
@@ -94,19 +94,54 @@
               筛选条件
               <span class="optional-tag">可选</span>
             </div>
-            <p class="filter-hint">
-              语法：使用英文分号 <code>;</code> 分隔多个条件，<code>!=</code> 表示不等于，<code>==</code> 表示等于。<br />
-              示例：<code>E26!=支出;E26!=转账;H26==支付成功</code><br />
-              说明：条件逐行判断，仅保留全部条件满足的数据行。
-            </p>
-            <van-field
-              v-model="mapping.filter"
-              placeholder="不填则使用全部数据"
-              clearable
-              :error="filterError !== ''"
-              :error-message="filterError"
-              @change="validateFilter"
-            />
+            <p class="filter-hint">每行一个条件，不填条件则使用全部数据。</p>
+
+            <div
+              v-for="(cond, idx) in filterConditions"
+              :key="cond.id"
+              class="condition-row"
+            >
+              <span
+                v-if="idx > 0"
+                class="connector-tag"
+                @click="toggleConnector(idx)"
+              >{{ cond.connector === 'and' ? '且' : '或' }}</span>
+              <span v-else class="connector-placeholder" />
+
+              <van-field
+                :model-value="cond.colIndex !== null ? columnLabels[cond.colIndex] : ''"
+                is-link
+                readonly
+                placeholder="列"
+                class="cond-col"
+                @click="openColumnPicker(idx)"
+              />
+              <van-field
+                :model-value="cond.operator ? (operatorLabels[cond.operator] ?? cond.operator) : ''"
+                is-link
+                readonly
+                placeholder="比较符"
+                class="cond-op"
+                :disabled="cond.colIndex === null"
+                @click="cond.colIndex !== null && openOperatorPicker(idx)"
+              />
+              <van-field
+                v-model="cond.value"
+                placeholder="值"
+                class="cond-val"
+                :type="cond.operator === '>=' || cond.operator === '<=' ? 'number' : 'text'"
+              />
+              <van-icon name="delete" class="cond-delete" @click="removeCondition(idx)" />
+            </div>
+
+            <van-button
+              plain
+              size="small"
+              icon="plus"
+              class="add-condition-btn"
+              :disabled="!mapping.timePos || !mapping.contentPos || !mapping.amountPos"
+              @click="addCondition"
+            >添加条件</van-button>
           </div>
         </div>
 
@@ -150,6 +185,22 @@
         <van-icon name="back-top" /> 顶部
       </van-button>
     </transition>
+
+    <!-- Action sheets for column/operator selection -->
+    <van-action-sheet
+      v-model:show="showColumnPicker"
+      :actions="columnActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="onColumnSelected"
+    />
+    <van-action-sheet
+      v-model:show="showOperatorPicker"
+      :actions="operatorActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="onOperatorSelected"
+    />
   </div>
 </template>
 
@@ -204,15 +255,127 @@ const mapping = reactive<ColumnMapping>({
   timePos: '',
   contentPos: '',
   amountPos: '',
-  filter: '',
 })
-const filterError = ref('')
-const activeFilter = ref('') // validated filter string
 const mappingErrors = reactive<Record<string, string>>({
   timePos: '',
   contentPos: '',
   amountPos: '',
 })
+
+// --- Filter conditions ---
+
+interface FilterCondition {
+  id: string
+  connector: 'and' | 'or'
+  colIndex: number | null
+  operator: string | null
+  value: string
+}
+
+const filterConditions = ref<FilterCondition[]>([])
+
+const maxCols = computed(() => {
+  if (parsedData.value.length === 0) return 0
+  return Math.max(...parsedData.value.map(r => r.length), 0)
+})
+
+const columnLabels = computed(() => {
+  const arr: string[] = []
+  for (let i = 0; i < maxCols.value; i++) {
+    arr.push(toAlphaCol(i))
+  }
+  return arr
+})
+
+const columnActions = computed(() =>
+  columnLabels.value.map(l => ({ name: l }))
+)
+
+const showColumnPicker = ref(false)
+const showOperatorPicker = ref(false)
+const pickerConditionIndex = ref(0)
+
+const operatorLabels: Record<string, string> = {
+  '>=': '大于等于',
+  '<=': '小于等于',
+  '==': '等于',
+  '!=': '不等于',
+}
+
+const operatorActions = computed(() => {
+  const cond = filterConditions.value[pickerConditionIndex.value]
+  if (!cond || cond.colIndex === null) return []
+  const entries = isColumnNumeric(cond.colIndex)
+    ? [['>=', '大于等于'], ['<=', '小于等于'], ['==', '等于'], ['!=', '不等于']] as const
+    : [['==', '等于'], ['!=', '不等于']] as const
+  return entries.map(([value, name]) => ({ name, value }))
+})
+
+function stripCurrency(val: string): string {
+  return val.replace(/[¥$€£￥,]/g, '').trim()
+}
+
+function isColumnNumeric(colIndex: number): boolean {
+  const startRow = getDataStartRow()
+  const data = startRow > 0 ? parsedData.value.slice(startRow) : parsedData.value
+  for (const row of data) {
+    const cell = stripCurrency((row[colIndex] ?? '').trim())
+    if (cell !== '' && !/^-?\d+(\.\d+)?$/.test(cell)) {
+      return false
+    }
+  }
+  return true
+}
+
+function addCondition() {
+  if (!mapping.timePos || !mapping.contentPos || !mapping.amountPos) {
+    showToast('请先填写列映射字段')
+    return
+  }
+  filterConditions.value.push({
+    id: crypto.randomUUID(),
+    connector: 'and',
+    colIndex: null,
+    operator: null,
+    value: '',
+  })
+}
+
+function removeCondition(idx: number) {
+  filterConditions.value.splice(idx, 1)
+}
+
+function toggleConnector(idx: number) {
+  const c = filterConditions.value[idx]
+  if (c) c.connector = c.connector === 'and' ? 'or' : 'and'
+}
+
+function openColumnPicker(idx: number) {
+  pickerConditionIndex.value = idx
+  showColumnPicker.value = true
+}
+
+function openOperatorPicker(idx: number) {
+  pickerConditionIndex.value = idx
+  showOperatorPicker.value = true
+}
+
+function onColumnSelected(action: { name: string }) {
+  const idx = columnLabels.value.indexOf(action.name)
+  if (idx >= 0) {
+    const cond = filterConditions.value[pickerConditionIndex.value]
+    if (cond) {
+      cond.colIndex = idx
+      cond.operator = null
+      cond.value = ''
+    }
+  }
+}
+
+function onOperatorSelected(action: { value: string }) {
+  const cond = filterConditions.value[pickerConditionIndex.value]
+  if (cond) cond.operator = action.value
+}
 
 // --- Preview state ---
 const importBills = ref<ImportBillData[]>([])
@@ -318,8 +481,9 @@ const rowData = computed(() => {
 
 const canProceedToStep2 = computed(() => {
   if (!mapping.timePos || !mapping.contentPos || !mapping.amountPos) return false
-  if (mapping.filter && filterError.value) return false
   if (mappingErrors.timePos || mappingErrors.contentPos || mappingErrors.amountPos) return false
+  // All conditions must be complete (col + operator + value)
+  if (filterConditions.value.some(c => c.colIndex === null || !c.operator || !c.value.trim())) return false
   return true
 })
 
@@ -327,18 +491,11 @@ const currentDataCount = computed(() => {
   if (parsedData.value.length === 0) return 0
   const startRow = getDataStartRow()
   const data = startRow > 0 ? parsedData.value.slice(startRow) : parsedData.value
-  if (!activeFilter.value) return data.length
-
-  const conditions = parseFilterConditions(activeFilter.value)
-  if (conditions.length === 0) return data.length
-  return data.filter(row => {
-    for (const c of conditions) {
-      const cellVal = (row[c.colIndex] ?? '').trim()
-      if (c.operator === '==' && cellVal !== c.value) return false
-      if (c.operator === '!=' && cellVal === c.value) return false
-    }
-    return true
-  }).length
+  const active = filterConditions.value.filter(
+    c => c.colIndex !== null && c.operator && c.value.trim()
+  )
+  if (active.length === 0) return data.length
+  return data.filter(row => testConditions(row, active)).length
 })
 
 const navRightActions = computed(() => {
@@ -447,14 +604,26 @@ function getCellValues(pos: string): (string | number | null)[] {
 
 function onMappingInput(field: keyof ColumnMapping) {
   const raw = mapping[field] as string
-  const cleaned = raw.replace(field === 'contentPos' ? /[^a-zA-Z0-9+]/g : /[^a-zA-Z0-9]/g, '').toUpperCase()
+  let pattern: RegExp
+  if (field === 'timePos') {
+    pattern = /[^a-zA-Z0-9]/g
+  } else if (field === 'contentPos') {
+    pattern = /[^a-zA-Z+]/g
+  } else { // amountPos
+    pattern = /[^a-zA-Z]/g
+  }
+  const cleaned = raw.replace(pattern, '').toUpperCase()
   ;(mapping as any)[field] = cleaned
   mappingErrors[field] = ''
 }
 
 function onMappingChange() {
-  const allPos = [mapping.timePos, mapping.contentPos, mapping.amountPos]
-  const cells = allPos.flatMap(p => getHighlightedCells(p))
+  const cells: string[] = []
+  cells.push(...getHighlightedCells(mapping.timePos))
+  // contentPos and amountPos use the start row from timePos
+  const startRow = getDataStartRow()
+  extractColumnIndexes(mapping.contentPos).forEach(ci => cells.push(`${ci}_${startRow}`))
+  extractColumnIndexes(mapping.amountPos).forEach(ci => cells.push(`${ci}_${startRow}`))
   highlightedCells.value = cells
   if (gridApi.value) {
     gridApi.value.refreshCells()
@@ -465,83 +634,75 @@ function onMappingBlur(field: keyof ColumnMapping) {
   const pos = mapping[field] as string
   if (!pos.trim()) return
 
-  const parts = pos.split('+')
-  for (const part of parts) {
-    if (!/^[A-Z]+\d+$/.test(part.trim())) {
-      mappingErrors[field] = `"${part}" 格式无效，应为 列号+行号 如 A26`
+  if (field === 'timePos') {
+    const parts = pos.split('+')
+    for (const part of parts) {
+      if (!/^[A-Z]+\d+$/.test(part.trim())) {
+        mappingErrors[field] = `"${part}" 格式无效，应为 列号+行号 如 A26`
+        return
+      }
+    }
+    const values = getCellValues(pos)
+    const hasEmpty = values.some(v => v === null || v === undefined || String(v).trim() === '')
+    if (hasEmpty) {
+      mappingErrors[field] = '对应单元格内容为空'
+      return
+    }
+  } else if (field === 'contentPos') {
+    if (!/^[A-Z]+(\+[A-Z]+)*$/.test(pos)) {
+      mappingErrors[field] = '格式无效，应为列号如 E 或 E+F'
+      return
+    }
+  } else { // amountPos
+    if (!/^[A-Z]+$/.test(pos)) {
+      mappingErrors[field] = '格式无效，应为列号如 G'
       return
     }
   }
+  mappingErrors[field] = ''
+}
 
-  const values = getCellValues(pos)
-  const hasEmpty = values.some(v => v === null || v === undefined || String(v).trim() === '')
-  if (hasEmpty) {
-    mappingErrors[field] = '对应单元格内容为空'
-  } else {
-    mappingErrors[field] = ''
+// --- Filter evaluation ---
+
+function evaluateCell(cellValue: string, operator: string, targetValue: string): boolean {
+  const a = stripCurrency(cellValue)
+  const b = stripCurrency(targetValue)
+  switch (operator) {
+    case '==': return a === b
+    case '!=': return a !== b
+    case '>=': return parseFloat(a) >= parseFloat(b)
+    case '<=': return parseFloat(a) <= parseFloat(b)
+    default: return false
   }
 }
 
-// --- Filter validation ---
-
-function validateFilter() {
-  const val = mapping.filter.trim()
-  if (!val) {
-    filterError.value = ''
-    activeFilter.value = ''
-    return
-  }
-
-  const segments = val.split(';')
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!.trim()
-    if (!seg) {
-      filterError.value = `第 ${i + 1} 个条件为空`
-      return
-    }
-    if (!/^[A-Z]+\d+(==|!=).+$/.test(seg)) {
-      filterError.value = `第 ${i + 1} 个条件格式错误："${seg}"`
-      return
+function testConditions(row: (string | null)[], conditions: FilterCondition[]): boolean {
+  let result = evaluateCell((row[conditions[0]!.colIndex!] ?? '').trim(), conditions[0]!.operator!, conditions[0]!.value.trim())
+  for (let i = 1; i < conditions.length; i++) {
+    const match = evaluateCell((row[conditions[i]!.colIndex!] ?? '').trim(), conditions[i]!.operator!, conditions[i]!.value.trim())
+    if (conditions[i]!.connector === 'and') {
+      result = result && match
+    } else {
+      result = result || match
     }
   }
-  filterError.value = ''
-  activeFilter.value = val
-}
-
-// --- Filter conditions parsing ---
-
-function parseFilterConditions(filterStr: string): { colIndex: number; operator: '==' | '!='; value: string }[] {
-  return filterStr.split(';').map(s => {
-    const m = s.trim().match(/^([A-Z]+)(\d+)(==|!=)(.+)$/)
-    if (!m) return null
-    let col = 0
-    for (const ch of m[1]!) {
-      col = col * 26 + (ch.charCodeAt(0) - 64)
-    }
-    return { colIndex: col - 1, operator: m[3]! as '==' | '!=', value: m[4]! }
-  }).filter((x): x is { colIndex: number; operator: '==' | '!='; value: string } => x !== null)
+  return result
 }
 
 function getFilteredData(): (string | null)[][] {
   const startRow = getDataStartRow()
   const data = startRow > 0 ? parsedData.value.slice(startRow) : parsedData.value
-  if (!activeFilter.value) return data
-  const conditions = parseFilterConditions(activeFilter.value)
-  if (conditions.length === 0) return data
-  return data.filter(row => {
-    for (const c of conditions) {
-      const cellVal = (row[c.colIndex] ?? '').trim()
-      if (c.operator === '==' && cellVal !== c.value) return false
-      if (c.operator === '!=' && cellVal === c.value) return false
-    }
-    return true
-  })
+  const active = filterConditions.value.filter(
+    c => c.colIndex !== null && c.operator && c.value.trim()
+  )
+  if (active.length === 0) return data
+  return data.filter(row => testConditions(row, active))
 }
 
 function extractColumnIndexes(pos: string): number[] {
   if (!pos.trim()) return []
   return pos.split('+').map(part => {
-    const m = part.trim().match(/^([A-Z]+)\d+$/)
+    const m = part.trim().match(/^([A-Z]+)\d*$/)
     if (!m) return -1
     let col = 0
     for (const ch of m[1]!) {
@@ -552,9 +713,8 @@ function extractColumnIndexes(pos: string): number[] {
 }
 
 function getDataStartRow(): number {
-  const positions = [mapping.timePos, mapping.contentPos, mapping.amountPos]
-    .filter(p => p.trim())
-    .flatMap(p => parsePositions(p))
+  if (!mapping.timePos.trim()) return 0
+  const positions = parsePositions(mapping.timePos)
   if (positions.length === 0) return 0
   return Math.min(...positions.map(p => p.rowIndex))
 }
@@ -562,7 +722,6 @@ function getDataStartRow(): number {
 // --- Step navigation ---
 
 function goToStep2() {
-  validateFilter()
   if (!canProceedToStep2.value) return
 
   const data = getFilteredData()
@@ -849,11 +1008,49 @@ initPage()
   line-height: 1.6;
   margin: 0 0 8px;
 }
-.filter-hint code {
-  background: var(--color-bg);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 11px;
+.condition-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.connector-tag {
+  flex-shrink: 0;
+  width: 28px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary, #1989fa);
+  background: #e8f0fe;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.connector-placeholder {
+  flex-shrink: 0;
+  width: 28px;
+}
+.cond-col {
+  flex: 0 0 72px !important;
+}
+.cond-op {
+  flex: 0 0 108px !important;
+}
+.cond-val {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+.cond-delete {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: var(--color-text-secondary);
+  padding: 8px 4px;
+  cursor: pointer;
+}
+.add-condition-btn {
+  width: 100%;
+  margin-top: 4px;
 }
 .form-actions {
   padding: 16px;
