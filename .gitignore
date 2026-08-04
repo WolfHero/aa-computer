@@ -45,6 +45,7 @@ coverage/
 .parcel-cache/
 .turbo/
 .cache/
+.pnpm-store/
 # Project assets output
 ./dist/
 

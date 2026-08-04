@@ -1,0 +1,31 @@
+{
+  // VSCode Dev Containers 配置
+  // 用法: VSCode 左下角 > 远程连接 > Reopen in Container
+  "name": "aa-computer dev",
+
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  "remoteUser": "node",
+
+  // Codex CLI 配置不与宿主机 Windows 同步（跨系统兼容性差），容器内独立使用
+  // 注意: 登录态随容器重建丢失, 重建后需在容器内重新 codex login
+
+  // Vite dev server 端口转发到宿主机
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": { "label": "Vite Dev Server", "onAutoForward": "notify" }
+  },
+
+  // 前端在宿主机浏览器运行, 直接访问宿主机的 Supabase (http://127.0.0.1:54321),
+  // 容器内不需要任何 Supabase 网络穿透; E2E 亦留在宿主机执行
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["Vue.volar"]
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/setup.sh"
+}
