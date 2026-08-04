@@ -4,4 +4,9 @@
       <component :is="Component" />
     </transition>
   </router-view>
+  <UpdatePrompt />
 </template>
+
+<script setup lang="ts">
+import UpdatePrompt from '@/components/UpdatePrompt.vue'
+</script>

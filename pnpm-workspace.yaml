@@ -1,2 +1,5 @@
 allowBuilds:
   supabase: true
+
+# 统一 peer 依赖解析，避免同版本依赖（如 vite@7.3.3）因可选 peer 差异产生多份副本
+dedupePeers: true

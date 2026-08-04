@@ -129,6 +129,16 @@ pnpm build
 
 The output is in `dist/` — deploy to any static hosting service.
 
+#### PWA / Offline Access
+
+This project supports PWA. Once deployed on an HTTPS host, users can install it to their home screen or desktop via the browser's "Add to Home Screen / Install App". After the first visit, the app shell is cached by a Service Worker, so it can still be opened offline and local rooms/bills remain viewable. When a new version is released, installed users get an update prompt and can refresh on confirmation.
+
+To regenerate the PWA icons (reusing `public/icon.png` by default), run:
+
+```bash
+pnpm generate-pwa-assets
+```
+
 #### Deploy to Vercel (Example)
 
 1. Push the code to a GitHub repository
