@@ -7,9 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 - `pnpm dev` — Start Vite dev server
+- `pnpm dev:container` — Start Vite dev server using `.env.container` (container-internal Supabase URL)
 - `pnpm build` — Type-check with vue-tsc + Vite build
 - `pnpm preview` — Preview production build
 - `pnpm exec playwright test` — Run all E2E tests (needs dev server + Supabase running). Tests in `e2e/`: `aa-calculation.spec.ts`, `local-persistence.spec.ts`, `member-management.spec.ts`, `debug.spec.ts`
+- `pnpm test:container` — Run E2E tests with container env (`.env.container`), for tests inside the dev container
 - `pnpm exec playwright test --grep "test-name-pattern"` — Run specific E2E tests
 - `pnpm exec playwright test e2e/pwa.spec.ts` — Run PWA tests (needs `pnpm build && pnpm preview --port 4173 --strictPort` running; skips automatically if preview is not up)
 - Supabase: use `npx supabase` commands (local instance at `http://127.0.0.1:54321`)

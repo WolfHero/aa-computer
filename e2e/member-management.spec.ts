@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test'
 
-const SUPABASE_URL = 'http://127.0.0.1:54321'
+// 宿主机默认走 127.0.0.1; 容器内由 playwright.config.ts 按 VITE_MODE=container
+// 加载 .env.container 覆盖为 http://supabase_kong_aa-computer:8000
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 const ANON_KEY = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'
 const NICKNAME = 'E2E测试员'

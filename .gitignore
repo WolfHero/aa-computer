@@ -34,6 +34,7 @@ coverage/
 .vite/
 # Env files
 .env
+.env.container
 .env.development.local
 .env.test.local
 .env.production.local

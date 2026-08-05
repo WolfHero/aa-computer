@@ -9,6 +9,13 @@
 
   "remoteUser": "node",
 
+  // 挂载宿主机 Docker socket (Linux / macOS / Windows 由官方 feature 自动适配),
+  // 用于在容器内把自身接入宿主机 Supabase 的 Docker 网络。
+  // 注意: feature 的 socket 代理脚本需要 sudo (Dockerfile 已安装), 改动后需 Rebuild Container 生效
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+
   // Codex CLI 配置不与宿主机 Windows 同步（跨系统兼容性差），容器内独立使用
   // 注意: 登录态随容器重建丢失, 重建后需在容器内重新 codex login
 
@@ -18,8 +25,9 @@
     "5173": { "label": "Vite Dev Server", "onAutoForward": "notify" }
   },
 
-  // 前端在宿主机浏览器运行, 直接访问宿主机的 Supabase (http://127.0.0.1:54321),
-  // 容器内不需要任何 Supabase 网络穿透; E2E 亦留在宿主机执行
+  // 前端在宿主机浏览器运行, 直接访问宿主机的 Supabase (http://127.0.0.1:54321);
+  // 容器内已挂载 Docker socket, setup.sh 会将容器接入 Supabase 网络,
+  // 之后容器内可用 http://supabase-kong-<project>:8000 直接访问 API
 
   "customizations": {
     "vscode": {

@@ -1,0 +1,8 @@
+# Codex 项目级配置 (仅作用于本仓库, 仓库需处于 trusted 状态)
+#
+# Playwright MCP: 让 Codex 通过真实 Chromium 完成浏览器操作模拟
+# - 修改后需重启 Codex 会话才会加载 (可用 `codex mcp list` 检查)
+# - 默认无头模式; 想看浏览器窗口时去掉 --headless, 并配合 desktop-lite (noVNC) 使用
+[mcp_servers.playwright]
+command = "npx"
+args = ["--yes", "@playwright/mcp@latest", "--headless", "--no-sandbox"]
