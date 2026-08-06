@@ -23,7 +23,7 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
     {
       echo ""
       echo "# cdx: codex YOLO 模式 (跳过审批与沙箱)"
-      echo "alias cdx='codex exec --dangerously-bypass-approvals-and-sandbox'"
+      echo "alias cdx='codex --dangerously-bypass-approvals-and-sandbox'"
     } >> "$RC"
     echo ">>> 已添加别名 cdx 到 $RC"
   fi
