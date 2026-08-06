@@ -31,7 +31,10 @@
           >
             <template #title>
               {{ room.name }}
-              <span v-if="!remoteRoomIds.has(room.id)" class="local-badge">本地</span>
+              <span v-if="room.mode === 'local'" class="badge local-badge">本地</span>
+              <span v-else-if="room.mode === 'expired'" class="badge expired-badge">过期只读</span>
+              <span v-else-if="room.mode === 'legacy'" class="badge legacy-badge">旧数据</span>
+              <span v-else class="badge online-badge">在线</span>
             </template>
             <template #value>
               <span class="member-count">{{ room.members?.length ?? 0 }} 人</span>
@@ -46,7 +49,7 @@
       </van-list>
     </van-pull-refresh>
 
-    <div class="bottom-notice">服务端数据将于最后一次编辑的七天后清除</div>
+    <div class="bottom-notice">在线房间服务端数据将于最后一次编辑的七天后清除</div>
 
     <van-back-top />
 
@@ -60,12 +63,12 @@
       @select="onSettingsSelect"
     />
 
-    <PrivacyDialog v-model:show="showPrivacyDialog" />
+    <PrivacyDialog v-model:show="showPrivacyDialog" :initial-view="privacyInitialView" />
 
     <van-dialog
       v-model:show="showImportWarning"
       title="警告"
-      message="本操作会使本地数据清空并无法找回，确定继续吗？"
+      message="切换账号会使本设备的本地房间、账单数据清空且无法找回（本地房间不会随账号迁移），确定继续吗？"
       show-cancel-button
       confirm-button-text="确认登录"
       @confirm="showImportWarning = false; showImportDialog = true"
@@ -89,16 +92,26 @@
         />
       </div>
     </van-dialog>
+
+    <input
+      ref="importFileInput"
+      type="file"
+      accept="application/json,.json"
+      style="display: none"
+      @change="onImportFile"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { showConfirmDialog } from 'vant'
 import { showToast } from '@/utils/toast'
 import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
 import { useLocalRooms } from '@/composables/useLocalRooms'
+import { useLocalBackup } from '@/composables/useLocalBackup'
 import { STORAGE_KEYS } from '@/utils/constants'
 import AppNavBar from '@/components/AppNavBar.vue'
 import RoomCreateDialog from '@/components/RoomCreateDialog.vue'
@@ -107,26 +120,72 @@ import PrivacyDialog from '@/components/PrivacyDialog.vue'
 const router = useRouter()
 const { userId, getRefreshToken, refreshSession } = useAuth()
 const { rooms, loading, finished, fetchRooms } = useRooms()
-const { getAllCachedRooms } = useLocalRooms()
+const { getAllRooms, getLegacyRoomIds, getLegacyRoomData } = useLocalRooms()
+const { parseLocalRoomFile, importLocalRoomFile } = useLocalBackup()
 
-const remoteRoomIds = computed(() => new Set(rooms.value.map(r => r.id)))
 const mergedRooms = computed(() => {
-  const remote = rooms.value
-  const localOnly = getAllCachedRooms().filter(r => !remoteRoomIds.value.has(r.id))
-  return [...remote, ...localOnly]
+  const remoteIds = new Set(rooms.value.map(r => r.id))
+  const list: Array<{
+    id: string
+    name: string
+    description: string
+    updated_at: string
+    members?: unknown[]
+    mode: 'online' | 'local' | 'expired' | 'legacy'
+  }> = []
+
+  for (const r of rooms.value) {
+    list.push({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      updated_at: r.updated_at,
+      members: r.members,
+      mode: 'online',
+    })
+  }
+  for (const r of getAllRooms()) {
+    if (remoteIds.has(r.id) && r.mode === 'online') continue
+    list.push({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      updated_at: r.updated_at,
+      members: r.members,
+      mode: r.mode,
+    })
+  }
+  for (const id of getLegacyRoomIds()) {
+    const legacy = getLegacyRoomData(id)
+    if (legacy) {
+      list.push({
+        id,
+        name: legacy.room.name,
+        description: legacy.room.description,
+        updated_at: legacy.room.updated_at,
+        members: legacy.room.members,
+        mode: 'legacy',
+      })
+    }
+  }
+  return list.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
 })
 const refreshing = ref(false)
 const listLoading = ref(false)
 const showCreateDialog = ref(false)
 const showActionSheet = ref(false)
 const showPrivacyDialog = ref(false)
+const privacyInitialView = ref<'usage' | 'privacy'>('usage')
 const showImportDialog = ref(false)
 const showImportWarning = ref(false)
 const importToken = ref('')
+const importFileInput = ref<HTMLInputElement | null>(null)
 
 const settingsActions = [
   { name: '登录当前账号到其他设备', key: 'copyToken' },
   { name: '从其他设备登录账号', key: 'importToken' },
+  { name: '导入本地房间', key: 'importRoom' },
+  { name: '使用说明', key: 'usage' },
   { name: '隐私政策', key: 'privacy' },
 ]
 
@@ -214,10 +273,47 @@ function onSettingsSelect(action: { key: string }) {
     } else {
       showImportDialog.value = true
     }
-  } else if (action.key === 'privacy') {
+  } else if (action.key === 'usage') {
+    privacyInitialView.value = 'usage'
     showPrivacyDialog.value = true
+  } else if (action.key === 'privacy') {
+    privacyInitialView.value = 'privacy'
+    showPrivacyDialog.value = true
+  } else if (action.key === 'importRoom') {
+    importFileInput.value?.click()
   }
   showActionSheet.value = false
+}
+
+async function onImportFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  try {
+    const text = await file.text()
+    const parsed = parseLocalRoomFile(text)
+    const result = importLocalRoomFile(parsed, false)
+    if (result.conflict) {
+      try {
+        await showConfirmDialog({
+          title: '覆盖本地房间',
+          message: `本机已存在同名本地房间「${parsed.room.name}」，是否覆盖？`,
+          confirmButtonText: '覆盖',
+          confirmButtonColor: '#ee0a24',
+        })
+      } catch {
+        showToast('已取消导入')
+        return
+      }
+      importLocalRoomFile(parsed, true)
+    }
+    showToast('导入成功')
+    router.push({ path: `/room/${result.roomId}`, state: { roomName: parsed.room.name } })
+  } catch (err: unknown) {
+    showToast(err instanceof Error ? err.message : '导入失败')
+  }
 }
 
 async function onLoad() {
@@ -246,7 +342,9 @@ onMounted(() => {
   if (!localStorage.getItem(STORAGE_KEYS.PRIVACY_ACCEPTED)) {
     showPrivacyDialog.value = true
   }
-  fetchRooms(true)
+  fetchRooms(true).catch(() => {
+    // 本地模式不依赖网络，拉取在线房间失败时静默降级
+  })
 })
 
 </script>
@@ -269,15 +367,29 @@ onMounted(() => {
   font-size: 12px;
   color: var(--color-text-secondary);
 }
-.local-badge {
+.badge {
   display: inline-block;
   margin-left: 4px;
   padding: 0 6px;
   font-size: 10px;
   line-height: 18px;
   border-radius: 4px;
+}
+.local-badge {
   background: #fff7e6;
   color: #fa8c16;
+}
+.online-badge {
+  background: #e6f7ff;
+  color: #1989fa;
+}
+.expired-badge {
+  background: #f0f0f0;
+  color: #999;
+}
+.legacy-badge {
+  background: #fde8e8;
+  color: #ee0a24;
 }
 .loading-state {
   text-align: center;

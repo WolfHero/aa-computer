@@ -57,33 +57,42 @@
 
           <van-field
             v-model="mapping.timePos"
+            class="mapping-input"
             label="付款时间位置"
             placeholder="如 A2 （A是列号，2是行号）"
             clearable
             :error="mappingErrors.timePos !== ''"
             :error-message="mappingErrors.timePos"
+            @compositionstart="onMappingCompositionStart"
+            @compositionend="onMappingCompositionEnd"
             @input="onMappingInput('timePos')"
             @change="onMappingChange"
             @blur="onMappingBlur('timePos')"
           />
           <van-field
             v-model="mapping.contentPos"
+            class="mapping-input"
             label="付款内容位置"
             placeholder="如 E 或 E+F"
             clearable
             :error="mappingErrors.contentPos !== ''"
             :error-message="mappingErrors.contentPos"
+            @compositionstart="onMappingCompositionStart"
+            @compositionend="onMappingCompositionEnd"
             @input="onMappingInput('contentPos')"
             @change="onMappingChange"
             @blur="onMappingBlur('contentPos')"
           />
           <van-field
             v-model="mapping.amountPos"
+            class="mapping-input"
             label="付款金额位置"
             placeholder="如 G"
             clearable
             :error="mappingErrors.amountPos !== ''"
             :error-message="mappingErrors.amountPos"
+            @compositionstart="onMappingCompositionStart"
+            @compositionend="onMappingCompositionEnd"
             @input="onMappingInput('amountPos')"
             @change="onMappingChange"
             @blur="onMappingBlur('amountPos')"
@@ -201,6 +210,20 @@
       close-on-click-action
       @select="onOperatorSelected"
     />
+    <van-action-sheet
+      v-model:show="showQuickSheet"
+      :actions="quickActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="onQuickSelect"
+    />
+    <van-action-sheet
+      v-model:show="showPayerSheet"
+      :actions="payerActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="onPayerSelected"
+    />
   </div>
 </template>
 
@@ -219,6 +242,7 @@ import ImportBillCard from '@/components/ImportBillCard.vue'
 import { parseXlsx, parseCsv, type ParsedSheet } from '@/utils/importParser'
 import { useRooms } from '@/composables/useRooms'
 import { useLocalBills } from '@/composables/useLocalBills'
+import { useLocalRooms } from '@/composables/useLocalRooms'
 import { useRemoteBills } from '@/composables/useRemoteBills'
 import { useAuth } from '@/composables/useAuth'
 import type { ImportBillData, ColumnMapping, RoomMember } from '@/lib/types'
@@ -230,12 +254,16 @@ const route = useRoute()
 const router = useRouter()
 const roomId = computed(() => route.params.id as string)
 const { getRoomById } = useRooms()
+const { getRoom, getLegacyRoomData } = useLocalRooms()
 const { addBills } = useLocalBills()
 const { submitBills } = useRemoteBills()
 const { userId } = useAuth()
 
-const members = ref<Pick<RoomMember, 'id' | 'name'>[]>([])
+const members = ref<Pick<RoomMember, 'id' | 'name' | 'user_id'>[]>([])
 const myMemberId = ref('')
+const isOnlineRoom = ref(true)
+const showQuickSheet = ref(false)
+const showPayerSheet = ref(false)
 
 // --- File selection state ---
 const step = ref(0) // 0=file pick, 1=grid+mapping, 2=card preview
@@ -256,6 +284,7 @@ const mapping = reactive<ColumnMapping>({
   contentPos: '',
   amountPos: '',
 })
+const isMappingComposing = ref(false)
 const mappingErrors = reactive<Record<string, string>>({
   timePos: '',
   contentPos: '',
@@ -501,11 +530,36 @@ const currentDataCount = computed(() => {
 const navRightActions = computed(() => {
   if (step.value === 2) {
     return [
-      { text: '全选分摊', onClick: onSelectAllSharers },
+      { text: '快捷功能', onClick: () => showQuickSheet.value = true },
       { text: '保存', onClick: onSave },
     ]
   }
   return []
+})
+
+const quickActions = [
+  { name: '全选分摊', key: 'select-all' },
+  { name: '取消全选分摊', key: 'deselect-all' },
+  { name: '设置本批付款人', key: 'set-payer' },
+]
+
+const payerActions = computed(() => {
+  const list: { id: string; name: string }[] = []
+  const seen = new Set<string>()
+  if (myMemberId.value) {
+    const self = members.value.find(m => m.id === myMemberId.value)
+    list.push({ id: myMemberId.value, name: self?.name || '我' })
+    seen.add(myMemberId.value)
+  }
+  for (const m of members.value) {
+    if (seen.has(m.id)) continue
+    // 只允许自己或未绑定成员作为付款人
+    if (m.user_id === null) {
+      list.push({ id: m.id, name: m.name })
+      seen.add(m.id)
+    }
+  }
+  return list.map(o => ({ name: o.name, key: o.id }))
 })
 
 // --- File handling ---
@@ -603,19 +657,49 @@ function getCellValues(pos: string): (string | number | null)[] {
 // --- Mapping handlers ---
 
 function onMappingInput(field: keyof ColumnMapping) {
-  const raw = mapping[field] as string
-  let pattern: RegExp
-  if (field === 'timePos') {
-    pattern = /[^a-zA-Z0-9]/g
-  } else if (field === 'contentPos') {
-    pattern = /[^a-zA-Z+]/g
-  } else { // amountPos
-    pattern = /[^a-zA-Z]/g
-  }
-  const cleaned = raw.replace(pattern, '').toUpperCase()
-  ;(mapping as any)[field] = cleaned
   mappingErrors[field] = ''
+  if (isMappingComposing.value) return
+  sanitizeMapping()
 }
+
+function sanitizeMapping() {
+  const fields = ['timePos', 'contentPos', 'amountPos'] as const
+  for (const field of fields) {
+    const raw = mapping[field] as string
+    let pattern: RegExp
+    if (field === 'timePos') {
+      pattern = /[^a-zA-Z0-9]/g
+    } else if (field === 'contentPos') {
+      pattern = /[^a-zA-Z+]/g
+    } else {
+      pattern = /[^a-zA-Z]/g
+    }
+    const cleaned = raw.replace(pattern, '').toUpperCase()
+    if (cleaned !== raw) {
+      ;(mapping as any)[field] = cleaned
+    }
+  }
+}
+
+// v-model 更新后统一转大写，避免 input 事件读到的还是旧值
+watch(
+  [() => mapping.timePos, () => mapping.contentPos, () => mapping.amountPos],
+  () => {
+    if (isMappingComposing.value) return
+    sanitizeMapping()
+  },
+)
+
+function onMappingCompositionStart() {
+  isMappingComposing.value = true
+}
+
+function onMappingCompositionEnd() {
+  isMappingComposing.value = false
+  sanitizeMapping()
+  onMappingChange()
+}
+
 
 function onMappingChange() {
   const cells: string[] = []
@@ -748,6 +832,7 @@ function goToStep2() {
       paidAt,
       sharedBy: [],
       createdBy: myMemberId.value,
+      payerId: myMemberId.value,
       rawRow,
     }
   })
@@ -818,6 +903,43 @@ async function onSelectAllSharers() {
   showToast('已全选')
 }
 
+async function onDeselectAllSharers() {
+  try {
+    await showConfirmDialog({
+      title: '取消全选分摊',
+      message: '将清空所有账单的分摊人员，确定吗？',
+      confirmButtonColor: '#ee0a24',
+    })
+  } catch {
+    return
+  }
+  for (const bill of importBills.value) {
+    bill.sharedBy = []
+  }
+  importBills.value = [...importBills.value]
+  showToast('已取消全选')
+}
+
+async function onQuickSelect(action: { key: string }) {
+  if (action.key === 'select-all') {
+    await onSelectAllSharers()
+  } else if (action.key === 'deselect-all') {
+    await onDeselectAllSharers()
+  } else if (action.key === 'set-payer') {
+    showPayerSheet.value = true
+  }
+}
+
+function onPayerSelected(action: { key: string }) {
+  const member = members.value.find(m => m.id === action.key)
+  if (!member) return
+  for (const bill of importBills.value) {
+    bill.payerId = member.id
+  }
+  importBills.value = [...importBills.value]
+  showToast(`本批付款人已设为「${member.name}」`)
+}
+
 async function onSave() {
   for (let i = 0; i < importBills.value.length; i++) {
     const bill = importBills.value[i]!
@@ -847,16 +969,21 @@ async function onSave() {
       paid_at: b.paidAt,
       shared_by: b.sharedBy,
       created_by: b.createdBy,
+      payer_id: b.payerId ?? b.createdBy,
       creator_name: members.value.find(m => m.id === b.createdBy)?.name ?? '',
     }))
 
     addBills(roomId.value, billsToCreate)
 
-    try {
-      await submitBills(roomId.value)
+    if (isOnlineRoom.value) {
+      try {
+        await submitBills(roomId.value)
+        showToast('导入成功')
+      } catch {
+        showToast('已保存到本地，同步失败')
+      }
+    } else {
       showToast('导入成功')
-    } catch {
-      showToast('已保存到本地，同步失败')
     }
 
     router.push(`/room/${roomId.value}`)
@@ -902,6 +1029,24 @@ function onGridReady(params: any) {
 // --- Init ---
 
 async function initPage() {
+  const v2 = getRoom(roomId.value)
+  if (v2 && v2.mode === 'local') {
+    isOnlineRoom.value = false
+    members.value = v2.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id }))
+    myMemberId.value = v2.self_member_id ?? ''
+    return
+  }
+  if (v2 && v2.mode === 'expired') {
+    showToast('过期房间不可导入')
+    router.replace(`/room/${roomId.value}`)
+    return
+  }
+  if (getLegacyRoomData(roomId.value)) {
+    showToast('旧版本地数据不可导入')
+    router.replace(`/room/${roomId.value}`)
+    return
+  }
+
   if (!userId.value) {
     showToast('无权限访问')
     router.replace('/')
@@ -910,7 +1055,8 @@ async function initPage() {
 
   try {
     const room = await getRoomById(roomId.value)
-    members.value = room.members.map(m => ({ id: m.id, name: m.name }))
+    isOnlineRoom.value = true
+    members.value = room.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id }))
     const myMember = room.members.find(m => m.user_id === userId.value)
     if (myMember) {
       myMemberId.value = myMember.id
@@ -982,6 +1128,10 @@ initPage()
 }
 .form-section-inner {
   padding: 12px 16px 0;
+}
+:deep(.mapping-input input) {
+  ime-mode: disabled;
+  text-transform: uppercase;
 }
 .form-section-title {
   font-size: 14px;

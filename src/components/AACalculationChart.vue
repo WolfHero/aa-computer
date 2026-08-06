@@ -85,11 +85,8 @@ const netClass = computed(() => ({
 }))
 
 const transfers = computed<AATransfer[]>(() => {
-  if (!props.result?.results?.transfers) return []
-  if (!props.currentMemberId) return props.result.results.transfers
-  return props.result.results.transfers.filter(
-    t => t.from_member_id === props.currentMemberId || t.to_member_id === props.currentMemberId
-  )
+  // 转账明细展示全体成员的结算方案，不只当前用户
+  return props.result?.results?.transfers ?? []
 })
 
 function renderChart() {

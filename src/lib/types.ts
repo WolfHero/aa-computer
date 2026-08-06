@@ -28,6 +28,7 @@ export interface Bill {
   paid_at: string
   shared_by: string[]
   created_by: string
+  payer_id?: string
   creator_name: string
   created_at: string
   synced: boolean
@@ -71,6 +72,35 @@ export interface RoomWithMembers extends Room {
   members: Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted' | 'created_at'>[]
 }
 
+export type RoomMode = 'local' | 'online' | 'expired'
+
+export interface LocalRoom {
+  id: string
+  name: string
+  description: string
+  created_at: string
+  updated_at: string
+  settings: Record<string, unknown>
+  version: number
+  owner_id: string | null
+  mode: RoomMode
+  self_member_id: string | null
+  members: Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted' | 'created_at'>[]
+}
+
+export interface LocalRoomStore {
+  [roomId: string]: LocalRoom
+}
+
+export interface LocalRoomFile {
+  format: 'aa-local-room'
+  version: 1
+  exported_at: string
+  room: LocalRoom
+  bills: Bill[]
+  aa_result?: AAResult | null
+}
+
 export interface BillFilter {
   content: string
   creator_id: string | null
@@ -92,7 +122,7 @@ export interface CachedRoom {
   members: Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted' | 'created_at'>[]
 }
 
-export interface LocalRoomStore {
+export interface LegacyRoomStore {
   [roomId: string]: CachedRoom
 }
 
@@ -107,6 +137,7 @@ export interface ImportBillData {
   paidAt: string
   sharedBy: string[]
   createdBy: string
+  payerId?: string
   rawRow: string
 }
 

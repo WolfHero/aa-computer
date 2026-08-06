@@ -48,7 +48,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { showToast } from '@/utils/toast'
-import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
 
 const props = withDefaults(defineProps<{ show?: boolean }>(), { show: false })
@@ -57,7 +56,6 @@ const emit = defineEmits<{
   created: [roomId: string]
 }>()
 
-const { ensureAuth } = useAuth()
 const { createRoom } = useRooms()
 const submitting = ref(false)
 
@@ -76,7 +74,6 @@ function resetForm() {
 async function onSubmit() {
   submitting.value = true
   try {
-    await ensureAuth()
     const { room } = await createRoom(form.name, form.description, form.creatorName)
     showToast('房间创建成功')
     emit('update:show', false)

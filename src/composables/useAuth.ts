@@ -4,6 +4,15 @@ import { supabase } from '@/lib/supabaseClient'
 const userId = ref<string | null>(null)
 const initialized = ref(false)
 
+function clearStoredSession() {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i)
+    if (key?.startsWith('sb-') && key.endsWith('-auth-token')) {
+      localStorage.removeItem(key)
+    }
+  }
+}
+
 export function useAuth() {
   async function initAuth() {
     let session = null
@@ -12,12 +21,7 @@ export function useAuth() {
       session = result.data.session
     } catch {
       // Token refresh failed (e.g. CORS), clear stale auth data
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const key = localStorage.key(i)
-        if (key?.startsWith('sb-') && key.endsWith('-auth-token')) {
-          localStorage.removeItem(key)
-        }
-      }
+      clearStoredSession()
     }
     if (session?.user) {
       userId.value = session.user.id
@@ -34,8 +38,16 @@ export function useAuth() {
     initialized.value = true
   }
 
-  async function ensureAuth() {
-    if (userId.value) return
+  async function ensureAuth(options: { beforeSignIn?: () => Promise<void> } = {}) {
+    if (userId.value) {
+      // 会话可能已失效（如匿名账号被服务端清理），先校验一次
+      const { error } = await supabase.auth.getUser()
+      if (!error) return
+      clearStoredSession()
+      userId.value = null
+    }
+
+    await options.beforeSignIn?.()
     const { data, error } = await supabase.auth.signInAnonymously()
     if (error) throw error
     userId.value = data.user!.id

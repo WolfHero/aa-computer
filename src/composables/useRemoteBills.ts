@@ -19,6 +19,7 @@ export function useRemoteBills() {
         paid_at: b.paid_at,
         shared_by: b.shared_by,
         created_by: b.created_by,
+        payer_id: b.payer_id ?? b.created_by,
         creator_name: b.creator_name,
       }))
     ).select()

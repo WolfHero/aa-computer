@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
 // 宿主机默认走 127.0.0.1; 容器内由 playwright.config.ts 按 VITE_MODE=container
 // 加载 .env.container 覆盖为 http://supabase_kong_aa-computer:8000
@@ -45,6 +45,14 @@ function extractRoomId(url: string): string {
   return m ? m[1] : ''
 }
 
+/** 本地房间 → 在线房间：点击复制公共邀请链接并确认转换 */
+async function convertLocalRoomToOnline(page: Page) {
+  await page.getByText('复制公共邀请链接').click()
+  await page.waitForSelector('.van-dialog:visible', { timeout: 5000 })
+  await page.getByRole('button', { name: '确认转换' }).click()
+  await page.waitForTimeout(2500)
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -77,6 +85,9 @@ test.describe('成员管理与房主功能 E2E', () => {
     const roomId = extractRoomId(page.url())
     expect(roomId).toBeTruthy()
 
+    // 本地创建 → 转换为在线房间
+    await convertLocalRoomToOnline(page)
+
     // 验证 DB 中 owner_id 已设置
     const rooms = await adminFetch(`rooms?id=eq.${roomId}&select=owner_id`)
     expect(rooms).toHaveLength(1)
@@ -87,8 +98,7 @@ test.describe('成员管理与房主功能 E2E', () => {
     await expect(page.locator('.owner-badge')).toContainText('房主')
 
     // 验证「你」badge
-    await expect(page.locator('.self-badge')).toBeVisible()
-    await expect(page.locator('.self-badge')).toContainText('你')
+    await expect(page.locator('.self-badge').filter({ hasText: '你' })).toBeVisible()
 
     // -- 添加占位成员 --
     await page.getByText('添加成员').click()
@@ -136,6 +146,9 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.getByRole('button', { name: '确认' }).click()
     await page.waitForTimeout(1000)
 
+    // 转换为在线房间，成员随转换上传
+    await convertLocalRoomToOnline(page)
+
     // 通过 DB 获取该成员 ID，然后调用 RPC 生成 token
     const members = await adminFetch(`room_members?room_id=eq.${roomId}&select=id,name`)
     const placeholder = members.find((m: any) => m.name === 'InviteUser')
@@ -180,6 +193,9 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.locator('.van-dialog .van-field__control').fill('AcceptUser')
     await page.getByRole('button', { name: '确认' }).click()
     await page.waitForTimeout(1000)
+
+    // 转换为在线房间
+    await convertLocalRoomToOnline(page)
 
     // 通过 DB 获取 memberId 并生成 token
     const members = await adminFetch(`room_members?room_id=eq.${roomId}&select=id,name`)
@@ -279,6 +295,9 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.getByRole('button', { name: '确认' }).click()
     await page.waitForTimeout(1000)
 
+    // 转换为在线房间
+    await convertLocalRoomToOnline(page)
+
     // 获取 memberId 并生成 token
     const members = await adminFetch(`room_members?room_id=eq.${roomId}&select=id,name`)
     const placeholder = members.find((m: any) => m.name === 'BoundUser')
@@ -326,6 +345,9 @@ test.describe('成员管理与房主功能 E2E', () => {
     await page.waitForSelector('.settings-page', { timeout: 15000 })
     const roomId = extractRoomId(page.url())
 
+    // 转换为在线房间后公共邀请链接才有效
+    await convertLocalRoomToOnline(page)
+
     // 直接访问公共邀请页
     await page.goto(`/invite?room_id=${roomId}`)
     await page.waitForTimeout(2000)
@@ -345,22 +367,24 @@ test.describe('成员管理与房主功能 E2E', () => {
 
     await page.addInitScript(({ roomId, roomName, nickname }) => {
       localStorage.setItem('aa_privacy_accepted', '1')
-      // Seed room data in localStorage
-      localStorage.setItem('aa_cached_rooms', JSON.stringify({
+      // Seed v2 过期房间
+      localStorage.setItem('aa_local_rooms_v2', JSON.stringify({
         [roomId]: {
           id: roomId,
           name: roomName,
           description: 'E2E测试过期房间',
           version: 1,
-          owner_id: 'local-owner',
+          owner_id: null,
+          mode: 'expired',
+          self_member_id: 'local-member-1',
           created_at: '2026-05-27T08:00:00.000Z',
           updated_at: '2026-05-27T08:00:00.000Z',
+          settings: {},
           members: [
-            { id: 'local-member-1', name: nickname, user_id: 'local-owner', is_unsubmitted: false, created_at: '2026-05-27T08:00:00.000Z' },
+            { id: 'local-member-1', name: nickname, user_id: null, is_unsubmitted: false, created_at: '2026-05-27T08:00:00.000Z' },
           ],
         },
       }))
-      localStorage.setItem('aa_expired_rooms', JSON.stringify([roomId]))
     }, { roomId: LOCAL_ROOM_ID, roomName: LOCAL_ROOM_NAME, nickname: NICKNAME })
 
     await page.goto(`/room/${LOCAL_ROOM_ID}/settings`)

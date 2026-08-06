@@ -48,10 +48,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `/room/:id/import` | ImportPage | Import bills from XLSX/CSV (AG-Grid preview, column mapping, filter conditions) |
 
 ### Data Flow
-1. **Bills**: Created locally → saved to localStorage → "提交付账记录" pushes to Supabase → marks synced → increments room version
-2. **AA Calculation**: Checks cached `aa_results` table (version match) → if stale, calls `calculate_aa` DB function → returns member net balances + transfer plan
-3. **Version Caching**: Room version persisted in localStorage → on revisit, if version unchanged, loads bills from localStorage cache (avoids redundant fetch)
-4. **Expired room fallback**: If Supabase fetch fails (room deleted/expired), falls back to `useLocalRooms` cache, marks room as local-only read-only
+1. **Local rooms (default)**: New rooms are created in `aa_local_rooms_v2` / `aa_local_bills_v2` without auth; bills/members/import/AA are fully offline. `useLocalAA` replicates `calculate_aa` in TS; local room version bumps on every bill/member change to invalidate the AA cache
+2. **Convert to online**: Only invite actions in room settings (public link / member token) trigger a confirm dialog → `ensureAuth()` → `convert_local_room` RPC (atomic, idempotent) uploads room/members/bills; bills are marked synced and the room mode becomes `online`. Conversion is one-way; failures keep the room local and retryable
+3. **Online rooms**: Bills submit via `submitBills` → Supabase → mark synced → increment server room version; AA uses `aa_results` cache then `calculate_aa` RPC
+4. **Expired fallback**: When an online room's server fetch definitively fails, the cached room becomes `mode: 'expired'` (read-only; member `user_id` cleared, self marked via `self_member_id`). The expired-room menu can rebuild it as a brand-new local room (new id, members unbound); unmigrated v1 caches (`aa_cached_rooms` etc.) show as 旧数据 and can be migrated to v2 locally
 
 ### Composables
 - `useAuth` — Module-level `userId` ref, `initAuth()` gets session or calls `signInAnonymously()`, `ensureAuth()` for operations needing auth, `getRefreshToken()`/`refreshSession()` for cross-device login
@@ -60,18 +60,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `useLocalBills` — localStorage-based Bill[], revision counter for reactivity, CRUD + sync helpers (`markAsSynced`, `mergeFetchedBills`, `syncBillsFromServer`)
 - `useRemoteBills` — `submitBills` (push unsynced → DB → mark synced), `fetchBills` (paginated with filters/sort), `checkUnsubmittedMembers`
 - `useAAResult` — `getOrCalculateAA` (cache-then-calculate), wraps `calculate_aa` RPC
+- `useLocalAA` — pure TS replication of `calculate_aa` for local/expired rooms, cached in `aa_local_aa_v2`
+- `useLocalBackup` — local room export/import (`aa-local-room-v1` JSON)
+- `useRoomLifecycle` — rebuild expired room as local, migrate v1 cache to v2, delete all local room data
 
 ### Owner / Invite System
-- Room creator is auto-assigned as `owner_id` on the `rooms` table
+- Local room creator is identified by `self_member_id`; conversion binds that member to the anonymous user and sets `rooms.owner_id`
 - Owner can: add members (with `user_id: null` placeholder), edit any member's name, delete members (protected by DB trigger if member is referenced in bills), generate per-member invite tokens
 - Invite token flow: `generate_member_invite_token` RPC → `/invite/member?token=` page → `accept_invite` RPC binds the member to the current user
 - RLS updated: `room_members` insert/update allows owner OR self; delete is owner-only via `is_room_owner()`
 
 ### Expired Room / Local-Only Mode
 - Rooms not updated for 7 days are deleted by `cleanup_expired_rooms()`
-- On fetch failure, `useLocalRooms` cache + `isRoomExpired()` set marks room as expired
-- Expired rooms: read-only (no add/edit buttons, no "新增" in nav bar, expired banner shown), data persists locally
-- HomePage merges `useRooms.rooms` (remote) + `useLocalRooms.getAllCachedRooms()` (local-only), shows "本地" badge on local-only rooms
+- Local storage is versioned: `aa_local_rooms_v2` (`mode: 'local' | 'online' | 'expired'`, `self_member_id`), `aa_local_bills_v2`, `aa_local_aa_v2`; v1 keys are migration sources only
+- Expired rooms are read-only (no add/edit, no invite, expired banner shown); menu offers 重建为本地房间 (new id, unbound members, old entry removed) or 删除本地数据
+- Local rooms support export/import (`aa-local-room-v1` JSON, same-id overwrite allowed only for local-mode conflicts); online/expired rooms do not
+- HomePage merges remote online rooms + v2 local/expired rooms + legacy v1 rooms with badges 在线/本地/过期只读/旧数据
 
 ### Import Feature (XLSX/CSV → Bills)
 - Route: `/room/:id/import` — 3-step wizard: (0) file pick, (1) AG-Grid preview + column mapping + filter conditions, (2) editable card list review → save
@@ -94,9 +98,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **rooms**: `id (uuid)`, `name`, `description`, `owner_id (text)` — tracks room creator, `version (int)`, `settings (jsonb)`, timestamps
 - **room_members**: `id (uuid)`, `room_id`, `user_id (text, nullable)` — null for owner-created placeholder members, `name`, `is_unsubmitted`, `invite_token (text, nullable)` — per-member invite link
 - **bills**: `id (uuid)`, `room_id`, `content`, `amount (numeric(12,2))`, `paid_at`, `shared_by (uuid[])` — references member IDs, `created_by (uuid)` — member ID, `creator_name`
+- **bills 语义**: `created_by` 是账单创建人（不可变），`payer_id` 是付款人（默认=创建人）；付款人只有账单创建人可改，可选值仅限自己或未绑定成员（`update_bill` 服务端校验），AA 按 `payer_id` 结算
 - **aa_results**: `room_id (unique)`, `version`, `results (jsonb)` — cached AA calculation, validated against room version
 - RLS: `is_member_of_room()` security definer function; `is_room_owner()` for owner-only operations
-- **DB functions**: `calculate_aa(p_room_id)` — greedy pairing algorithm; `is_member_of_room()`, `is_room_owner()` — RLS helpers; `get_member_by_invite_token()`, `accept_invite()`, `generate_member_invite_token()` — invite flow; `delete_bill()`, `update_bill()` — bill management; `cleanup_expired_rooms()` — 7-day cleanup
+- **DB functions**: `calculate_aa(p_room_id)` — greedy pairing algorithm; `convert_local_room(...)` — atomic local→online conversion (idempotent); `is_member_of_room()`, `is_room_owner()` — RLS helpers; `get_member_by_invite_token()`, `accept_invite()`, `generate_member_invite_token()` — invite flow; `delete_bill()`, `update_bill()` — bill management; `cleanup_expired_rooms()` — 7-day cleanup
 - **Trigger**: `trg_check_member_in_bills` on `room_members` before-delete — prevents deleting a member referenced in any bill's `shared_by` array
 
 ### Components (src/components/)

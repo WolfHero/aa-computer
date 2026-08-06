@@ -80,11 +80,15 @@
           <span v-else class="no-members">暂无其他成员</span>
         </template>
       </van-field>
-      <van-field name="creatorName" label="付款人" readonly>
-        <template #input>
-          <span class="creator-name">{{ form.creatorName || creatorName }}</span>
-        </template>
-      </van-field>
+      <van-field
+        name="creator"
+        label="付款人"
+        :is-link="canEditPayer"
+        :model-value="form.creatorName"
+        placeholder="选择付款人"
+        readonly
+        @click="canEditPayer && (showPayerPicker = true)"
+      />
 
       <div v-if="editingBill" style="margin: 16px; display: flex; gap: 12px;">
         <van-button round block type="danger" native-type="button" @click="onDelete" style="flex: 1;">
@@ -121,6 +125,14 @@
       @cancel="showTimePicker = false"
     />
   </van-popup>
+
+  <van-action-sheet
+    v-model:show="showPayerPicker"
+    :actions="payerActions"
+    cancel-text="取消"
+    close-on-click-action
+    @select="onPayerSelected"
+  />
 </template>
 
 <script setup lang="ts">
@@ -148,10 +160,11 @@ function validateContent(val: string) {
 const props = withDefaults(defineProps<{
   show?: boolean
   roomId?: string
-  members?: Pick<RoomMember, 'id' | 'name'>[]
+  members?: Pick<RoomMember, 'id' | 'name' | 'user_id'>[]
   editingBill?: Bill | null
   creatorName?: string
   creatorId?: string
+  online?: boolean
 }>(), {
   show: false,
   roomId: '',
@@ -159,6 +172,7 @@ const props = withDefaults(defineProps<{
   editingBill: null,
   creatorName: '',
   creatorId: '',
+  online: true,
 })
 
 const emit = defineEmits<{
@@ -173,6 +187,7 @@ const { submitBills } = useRemoteBills()
 const submitting = ref(false)
 const showDatePicker = ref(false)
 const showTimePicker = ref(false)
+const showPayerPicker = ref(false)
 const formRef = ref()
 
 const todayStr = new Date().toISOString().slice(0, 10)
@@ -192,8 +207,37 @@ const form = reactive({
   paidDate: '',
   paidTime: defaultTime,
   sharedBy: [] as string[],
+  creatorId: '',
   creatorName: '',
 })
+
+const payerActions = computed(() => {
+  const list: { id: string; name: string }[] = []
+  const seen = new Set<string>()
+  const push = (id: string, name: string) => {
+    if (!seen.has(id)) {
+      list.push({ id, name })
+      seen.add(id)
+    }
+  }
+  if (props.creatorId) {
+    push(props.creatorId, props.creatorName || '我')
+  }
+  for (const m of props.members) {
+    // 只允许选择自己或未绑定成员作为付款人
+    if (m.user_id === null) {
+      push(m.id, m.name)
+    }
+  }
+  // 编辑时保留当前付款人（可能是历史数据中的已绑定成员）
+  if (form.creatorId) {
+    push(form.creatorId, form.creatorName || '未知')
+  }
+  return list.map(o => ({ name: o.name, key: o.id }))
+})
+
+/** 只有账单创建人可以修改付款人 */
+const canEditPayer = computed(() => !props.editingBill || props.editingBill.created_by === props.creatorId)
 
 function getCombinedPaidAt(): string {
   return dayjs(`${form.paidDate || todayStr} ${form.paidTime || defaultTime}`).format('YYYY-MM-DDTHH:mm:ssZZ')
@@ -207,6 +251,7 @@ function resetForm() {
     form.paidDate = d.isValid() ? d.format('YYYY-MM-DD') : todayStr
     form.paidTime = d.isValid() ? d.format('HH:mm') : defaultTime
     form.sharedBy = [...props.editingBill.shared_by]
+    form.creatorId = props.editingBill.payer_id ?? props.editingBill.created_by
     form.creatorName = props.editingBill.creator_name
   } else {
     form.content = ''
@@ -214,7 +259,16 @@ function resetForm() {
     form.paidDate = lastPaidDate.value || todayStr
     form.paidTime = defaultTime
     form.sharedBy = []
+    form.creatorId = props.creatorId
     form.creatorName = props.creatorName
+  }
+}
+
+function onPayerSelected(action: { key: string }) {
+  const member = props.members.find(m => m.id === action.key)
+  if (member) {
+    form.creatorId = member.id
+    form.creatorName = member.name
   }
 }
 
@@ -291,7 +345,7 @@ async function saveBill() {
 
   const paidAt = getCombinedPaidAt()
   if (props.editingBill) {
-    if (props.editingBill.id) {
+    if (props.online && props.editingBill.id) {
       // Synced bill: update in DB + version increment (transactional)
       const { error } = await supabase.rpc('update_bill', {
         p_bill_id: props.editingBill.id,
@@ -300,6 +354,7 @@ async function saveBill() {
         p_amount: amount,
         p_paid_at: paidAt,
         p_shared_by: form.sharedBy,
+        p_payer_id: form.creatorId,
         p_creator_name: form.creatorName,
       })
       if (error) throw error
@@ -309,6 +364,7 @@ async function saveBill() {
       amount,
       paid_at: paidAt,
       shared_by: form.sharedBy,
+      payer_id: form.creatorId,
       creator_name: form.creatorName,
     })
   } else {
@@ -319,12 +375,13 @@ async function saveBill() {
       paid_at: paidAt,
       shared_by: form.sharedBy,
       created_by: props.creatorId,
+      payer_id: form.creatorId,
       creator_name: form.creatorName,
     })
   }
 
   // 同步未提交的账单到后端（新账单或编辑未同步账单）
-  if (!props.editingBill?.id) {
+  if (props.online && !props.editingBill?.id) {
     try {
       await submitBills(props.roomId)
     } catch {

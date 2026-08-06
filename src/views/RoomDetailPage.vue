@@ -3,23 +3,29 @@
     <AppNavBar
       :title="room?.name || routeRoomName || '账单'"
       back-to="/"
-      :right-actions="localOnly
-        ? [{ text: '菜单', onClick: () => showActionSheet = true }]
-        : [{ text: '新增', onClick: () => { checkAndShowBillForm() } }, { text: '菜单', onClick: () => showActionSheet = true }]
-      "
+      :right-actions="rightActions"
     />
 
-    <div v-if="roomExpired" class="expired-banner">
-      <van-icon name="info-o" /> {{ localOnly ? '房间已过期，数据仅保存在本地（只读模式）' : '房间已过期，数据仅保存在本地，无法同步' }}
+    <div v-if="offlineView" class="expired-banner">
+      <van-icon name="info-o" /> 网络异常，正在显示本地缓存（只读）
+    </div>
+    <div v-else-if="roomMode === 'local'" class="local-banner">
+      <van-icon name="shield-o" /> 本地房间 · 数据仅保存在本机
+    </div>
+    <div v-else-if="roomMode === 'expired'" class="expired-banner">
+      <van-icon name="info-o" /> 房间已过期，数据仅保存在本地（只读模式）
+    </div>
+    <div v-else-if="roomMode === 'legacy'" class="expired-banner">
+      <van-icon name="info-o" /> 旧版本地数据（只读），可在菜单中迁移为本地房间
     </div>
 
     <BillFilter
-      v-if="!roomExpired"
+      v-if="(roomMode === 'local' || roomMode === 'online') && !offlineView"
       :members="members"
       @update="onFilterUpdate"
     />
 
-    <van-pull-refresh v-model="refreshing" @refresh="onRefresh" :disabled="roomExpired">
+    <van-pull-refresh v-model="refreshing" @refresh="onRefresh" :disabled="roomMode !== 'online'">
       <van-list
         v-model:loading="listLoading"
         :finished="listFinished"
@@ -28,7 +34,12 @@
         @load="onLoad"
       >
         <div v-for="bill in mergedBills" :key="bill.local_id || bill.id" class="bill-item">
-          <BillCard :bill="bill" :members="members" @click="onBillEdit(bill)" />
+          <BillCard
+            :bill="bill"
+            :members="members"
+            :show-local-badge="roomMode === 'online'"
+            @click="onBillEdit(bill)"
+          />
         </div>
 
         <div v-if="mergedBills.length === 0 && !listLoading" class="empty-state">
@@ -38,7 +49,7 @@
       </van-list>
     </van-pull-refresh>
 
-    <div class="bottom-notice">服务端数据将于最后一次编辑的七天后清除</div>
+    <div v-if="roomMode === 'online'" class="bottom-notice">服务端数据将于最后一次编辑的七天后清除</div>
 
     <van-back-top />
 
@@ -49,6 +60,7 @@
       :editing-bill="editingBill"
       :creator-name="myMember?.name ?? ''"
       :creator-id="myMember?.id ?? ''"
+      :online="roomMode === 'online'"
       @saved="onBillSaved"
       @delete="onDeleteBill"
       @closed="editingBill = null"
@@ -58,18 +70,20 @@
       v-model:show="showActionSheet"
       :room-id="roomId"
       :sort-mode="sortMode"
-      :room-expired="roomExpired"
-      :local-only="localOnly"
+      :mode="actionSheetMode"
+      :legacy="roomMode === 'legacy'"
       @update:sort-mode="onSortModeChange"
       @submit-bills="onBillsSubmitted"
       @calculate-aa="onCalculateAA"
       @delete-local="onDeleteLocal"
+      @rebuild="onRebuild"
+      @export="onExport"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showConfirmDialog } from 'vant'
 import { showToast } from '@/utils/toast'
@@ -77,6 +91,8 @@ import { supabase } from '@/lib/supabaseClient'
 import { useRooms } from '@/composables/useRooms'
 import { useLocalBills } from '@/composables/useLocalBills'
 import { useLocalRooms } from '@/composables/useLocalRooms'
+import { useLocalBackup } from '@/composables/useLocalBackup'
+import { useRoomLifecycle } from '@/composables/useRoomLifecycle'
 import { useRemoteBills } from '@/composables/useRemoteBills'
 import { useAuth } from '@/composables/useAuth'
 import AppNavBar from '@/components/AppNavBar.vue'
@@ -85,24 +101,44 @@ import BillForm from '@/components/BillForm.vue'
 import BillFilter from '@/components/BillFilter.vue'
 import RoomSettingsActionSheet from '@/components/RoomSettingsActionSheet.vue'
 import { PAGE_SIZE, STORAGE_KEYS } from '@/utils/constants'
-import type { Bill, BillFilter as BillFilterType, RoomMember, RoomWithMembers, SortMode } from '@/lib/types'
+import type {
+  Bill,
+  BillFilter as BillFilterType,
+  LocalRoom,
+  RoomMember,
+  RoomMode,
+  SortMode,
+} from '@/lib/types'
 
 const route = useRoute()
 const router = useRouter()
 const roomId = computed(() => route.params.id as string)
 const routeRoomName = (history.state as Record<string, unknown> | null)?.roomName as string | undefined
 const { getRoomById } = useRooms()
-const { getBills, getUnsyncedBills, syncBillsFromServer, mergeFetchedBills, deleteBill, clearRoom } = useLocalBills()
+const { getBills, getUnsyncedBills, syncBillsFromServer, mergeFetchedBills, deleteBill } = useLocalBills()
 const { submitBills, markForNextBill, checkUnsubmittedMembers, fetchBills } = useRemoteBills()
-const { getCachedRoom, saveRoom, removeRoom, markRoomExpired, isRoomExpired } = useLocalRooms()
+const { getRoom, saveRoom, getLegacyRoomData, markExpired } = useLocalRooms()
+const { removeRoomData, rebuildFromExpired, migrateLegacyRoom } = useRoomLifecycle()
+const { downloadLocalRoom } = useLocalBackup()
 const { userId } = useAuth()
 
-type MemberInfo = { id: string; name: string; user_id: string | null; is_unsubmitted: boolean; created_at: string }
-const room = ref<RoomWithMembers | null>(null)
+type MemberInfo = Pick<RoomMember, 'id' | 'name' | 'user_id' | 'is_unsubmitted' | 'created_at'>
+type RoomView = {
+  id: string
+  name: string
+  description: string
+  version: number
+  members: MemberInfo[]
+  mode: RoomMode | 'legacy'
+  self_member_id?: string | null
+}
+
+const room = ref<RoomView | null>(null)
+const roomMode = ref<RoomMode | 'legacy'>('online')
+const offlineView = ref(false)
+const legacyData = ref<ReturnType<typeof getLegacyRoomData>>(null)
 const myMember = ref<MemberInfo | null>(null)
-const roomExpired = ref(false)
-const localOnly = ref(false)
-const members = ref<Pick<RoomMember, 'id' | 'name'>[]>([])
+const members = ref<Pick<RoomMember, 'id' | 'name' | 'user_id'>[]>([])
 
 // Bill list state
 const syncedBills = ref<any[]>([])
@@ -141,8 +177,66 @@ function saveRoomVersion(v: number) {
 
 const lastBillsVersion = ref(loadRoomVersion())
 
-// Merged bills: local unsynced + remote synced
+function isNetworkError(e: unknown): boolean {
+  return e instanceof TypeError
+    || (e instanceof Error && /failed to fetch|network|load failed/i.test(e.message))
+}
+
+function applyLocalRoom(v2: LocalRoom) {
+  roomMode.value = v2.mode
+  room.value = {
+    id: v2.id,
+    name: v2.name,
+    description: v2.description,
+    version: v2.version,
+    members: v2.members,
+    mode: v2.mode,
+    self_member_id: v2.self_member_id,
+  }
+  members.value = v2.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id }))
+  myMember.value = v2.members.find(m => m.id === v2.self_member_id)
+    ?? v2.members.find(m => m.user_id === userId.value)
+    ?? null
+}
+
+function applyLegacy(data: NonNullable<ReturnType<typeof getLegacyRoomData>>) {
+  roomMode.value = 'legacy'
+  legacyData.value = data
+  room.value = {
+    id: data.room.id,
+    name: data.room.name,
+    description: data.room.description,
+    version: data.version,
+    members: data.room.members,
+    mode: 'legacy',
+    self_member_id: null,
+  }
+  members.value = data.room.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id }))
+  myMember.value = data.room.members.find(m => m.user_id === userId.value) ?? null
+}
+
+// Merged bills
 const mergedBills = computed(() => {
+  if (roomMode.value !== 'online') {
+    const all = roomMode.value === 'legacy'
+      ? (legacyData.value?.bills ?? [])
+      : getBills(roomId.value)
+    return all
+      .map(b => ({ ...b, local_id: b.local_id || b.id! }))
+      .filter(b => {
+        if (filters.value.content && !b.content.includes(filters.value.content)) return false
+        if (filters.value.creator_id && b.created_by !== filters.value.creator_id) return false
+        if (filters.value.paid_at_start && b.paid_at < filters.value.paid_at_start) return false
+        if (filters.value.paid_at_end && b.paid_at > filters.value.paid_at_end) return false
+        return true
+      })
+      .sort((a, b) => {
+        const da = sortMode.value === 'paid_at' ? new Date(b.paid_at).getTime() : new Date(b.created_at).getTime()
+        const db = sortMode.value === 'paid_at' ? new Date(a.paid_at).getTime() : new Date(a.created_at).getTime()
+        return da - db
+      })
+  }
+
   const local = getUnsyncedBills(roomId.value)
   const remote = syncedBills.value ?? []
   const seen = new Set<string>()
@@ -176,36 +270,95 @@ const mergedBills = computed(() => {
   })
 })
 
-async function loadRoom() {
+async function loadOnlineRoom(cached: LocalRoom | null) {
   try {
-    room.value = await getRoomById(roomId.value)
-    myMember.value = room.value.members.find(m => m.user_id === userId.value) ?? null
-    members.value = room.value.members.map(m => ({ id: m.id, name: m.name }))
-    roomExpired.value = false
-    localOnly.value = false
-    saveRoom(room.value)
-  } catch (e) {
-    const cached = getCachedRoom(roomId.value)
-    if (cached) {
-      room.value = cached as RoomWithMembers
-      members.value = cached.members.map(m => ({ id: m.id, name: m.name }))
-      myMember.value = cached.members.find(m => m.user_id === userId.value) ?? null
-      roomExpired.value = true
-      localOnly.value = true
-      markRoomExpired(roomId.value)
-      showToast('房间已过期，数据仅保存在本地')
+    const remote = await getRoomById(roomId.value)
+    offlineView.value = false
+    roomMode.value = 'online'
+    room.value = { ...remote, mode: 'online', self_member_id: null }
+    members.value = remote.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id }))
+    myMember.value = remote.members.find(m => m.user_id === userId.value) ?? null
+    saveRoom({ ...remote, mode: 'online', self_member_id: null })
+    if (remote.version !== lastBillsVersion.value) {
+      await loadRemoteBills(true)
+      lastBillsVersion.value = remote.version
+      saveRoomVersion(remote.version)
     } else {
-      roomExpired.value = true
-      localOnly.value = false
-      console.error('加载房间失败', e)
-      showToast('无权限访问')
-      router.replace('/')
+      loadSyncedBillsFromLocal()
     }
+  } catch (e: unknown) {
+    if (isNetworkError(e) && cached) {
+      offlineView.value = true
+      applyLocalRoom({ ...cached, mode: 'online' })
+      syncedBills.value = getBills(roomId.value)
+        .filter(b => b.synced && b.id)
+        .map(b => ({ ...b, local_id: b.id, synced: true }))
+      listFinished.value = true
+      showToast('网络异常，显示本地缓存')
+      return
+    }
+    markExpired(roomId.value, userId.value)
+    const expired = getRoom(roomId.value)
+    if (expired) {
+      applyLocalRoom(expired)
+      showToast('房间已过期，数据仅保存在本地（只读模式）')
+      return
+    }
+    showToast('无权限访问')
+    router.replace('/')
   }
 }
 
+async function loadView() {
+  lastBillsVersion.value = loadRoomVersion()
+  const v2 = getRoom(roomId.value)
+  if (v2 && v2.mode !== 'online') {
+    applyLocalRoom(v2)
+    return
+  }
+
+  const legacy = getLegacyRoomData(roomId.value)
+  if (legacy) {
+    let migrate = false
+    try {
+      await showConfirmDialog({
+        title: '发现旧版本地数据',
+        message: '此房间来自旧版本缓存。是否迁移为可编辑的本地房间？选择“暂不迁移”将以只读方式查看。',
+        confirmButtonText: '迁移',
+        cancelButtonText: '暂不迁移',
+      })
+      migrate = true
+    } catch {
+      migrate = false
+    }
+    if (migrate) {
+      try {
+        const newRoom = migrateLegacyRoom(roomId.value, userId.value)
+        showToast('已迁移为本地房间')
+        if (newRoom.id === roomId.value) {
+          loadView()
+        } else {
+          router.replace(`/room/${newRoom.id}`)
+        }
+        return
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : '迁移失败')
+      }
+    }
+    applyLegacy(legacy)
+    return
+  }
+
+  if (!userId.value) {
+    showToast('无权限访问')
+    router.replace('/')
+    return
+  }
+  await loadOnlineRoom(v2)
+}
+
 async function loadRemoteBills(refresh = false) {
-  if (roomExpired.value) return
+  if (roomMode.value !== 'online' || offlineView.value) return
   if (refresh) {
     remotePage.value = 0
     syncedBills.value = []
@@ -231,8 +384,6 @@ async function loadRemoteBills(refresh = false) {
     } else {
       syncedBills.value = [...(syncedBills.value ?? []), ...data]
     }
-    // Full refresh with no filters: replace cached synced data
-    // Otherwise: merge new data into cache (additive, for pagination/filters)
     if (refresh && !filters.value.content && !filters.value.creator_id) {
       syncBillsFromServer(roomId.value, data)
     } else {
@@ -247,22 +398,47 @@ async function loadRemoteBills(refresh = false) {
 }
 
 function onLoad() {
+  if (roomMode.value !== 'online' || offlineView.value) {
+    listLoading.value = false
+    listFinished.value = true
+    return
+  }
   loadRemoteBills()
 }
 
 function onFilterUpdate(newFilters: BillFilterType) {
   filters.value = { ...newFilters }
-  loadRemoteBills(true)
+  if (roomMode.value === 'online') {
+    loadRemoteBills(true)
+  }
 }
 
 function onSortModeChange(newMode: SortMode) {
   sortMode.value = newMode
-  loadRemoteBills(true)
+  if (roomMode.value === 'online') {
+    loadRemoteBills(true)
+  }
 }
 
+const rightActions = computed(() => {
+  if (roomMode.value === 'local' || (roomMode.value === 'online' && !offlineView.value)) {
+    return [
+      { text: '新增', onClick: checkAndShowBillForm },
+      { text: '菜单', onClick: () => showActionSheet.value = true },
+    ]
+  }
+  return [{ text: '菜单', onClick: () => showActionSheet.value = true }]
+})
+
+const actionSheetMode = computed<RoomMode>(() => {
+  if (roomMode.value === 'legacy') return 'expired'
+  return roomMode.value
+})
+
 async function checkAndShowBillForm() {
+  if (offlineView.value) return
   if (!myMember.value) return
-  if (hasSubmittedBefore.value) {
+  if (roomMode.value === 'online' && hasSubmittedBefore.value) {
     try {
       await markForNextBill(roomId.value)
     } catch {
@@ -274,7 +450,8 @@ async function checkAndShowBillForm() {
 }
 
 function onBillEdit(bill: Bill) {
-  if (localOnly.value) return
+  if (offlineView.value) return
+  if (roomMode.value !== 'local' && roomMode.value !== 'online') return
   editingBill.value = bill
   showBillForm.value = true
 }
@@ -294,22 +471,30 @@ async function onDeleteBill() {
     return
   }
 
-  if (bill.id) {
-    // Synced bill: delete from DB + version increment (transactional)
-    const { error } = await supabase.rpc('delete_bill', {
-      p_bill_id: bill.id,
-      p_room_id: roomId.value,
-    })
-    if (error) throw error
+  if (roomMode.value === 'online') {
+    if (bill.id) {
+      try {
+        const { error } = await supabase.rpc('delete_bill', {
+          p_bill_id: bill.id,
+          p_room_id: roomId.value,
+        })
+        if (error) throw error
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : '删除失败')
+        return
+      }
+    }
   }
   deleteBill(roomId.value, bill.local_id)
   onBillSaved()
 }
 
 async function onBillSaved() {
-  hasSubmittedBefore.value = true
-  await loadRemoteBills(true)
-  await saveCurrentRoomVersion()
+  if (roomMode.value === 'online') {
+    hasSubmittedBefore.value = true
+    await loadRemoteBills(true)
+    await saveCurrentRoomVersion()
+  }
 }
 
 async function onBillsSubmitted() {
@@ -329,7 +514,7 @@ async function saveCurrentRoomVersion() {
 }
 
 async function onCalculateAA() {
-  if (!roomExpired.value) {
+  if (roomMode.value === 'online' && !offlineView.value) {
     try {
       await submitBills(roomId.value)
       hasSubmittedBefore.value = true
@@ -357,25 +542,65 @@ async function onDeleteLocal() {
     })
   } catch { return }
 
-  removeRoom(roomId.value)
-  clearRoom(roomId.value)
-  // 清除版本缓存
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.ROOM_VERSIONS)
-    if (raw) {
-      const map = JSON.parse(raw)
-      delete map[roomId.value]
-      localStorage.setItem(STORAGE_KEYS.ROOM_VERSIONS, JSON.stringify(map))
-    }
-  } catch { /* ignore */ }
+  removeRoomData(roomId.value, roomMode.value === 'legacy')
   router.replace('/')
+}
+
+async function onRebuild() {
+  if (roomMode.value === 'legacy') {
+    try {
+      await showConfirmDialog({
+        title: '迁移为本地房间',
+        message: '将旧缓存转换为可编辑的本地房间，原旧缓存将被移除。',
+        confirmButtonText: '迁移',
+      })
+    } catch { return }
+    try {
+      const newRoom = migrateLegacyRoom(roomId.value, userId.value)
+      showToast('已迁移为本地房间')
+      if (newRoom.id === roomId.value) {
+        loadView()
+      } else {
+        router.replace(`/room/${newRoom.id}`)
+      }
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : '迁移失败')
+    }
+    return
+  }
+
+  try {
+    await showConfirmDialog({
+      title: '重建为本地房间',
+      message: '将复制成员和账单生成一个新的本地房间，原过期房间条目将被移除。',
+      confirmButtonColor: '#ee0a24',
+    })
+  } catch { return }
+
+  try {
+    const newRoom = rebuildFromExpired(roomId.value)
+    showToast('已重建为本地房间')
+    router.replace(`/room/${newRoom.id}`)
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : '重建失败')
+  }
+}
+
+function onExport() {
+  try {
+    downloadLocalRoom(roomId.value)
+    showToast('已导出本地房间文件')
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : '导出失败')
+  }
 }
 
 async function onRefresh() {
   refreshing.value = true
-  await loadRoom()
-  await loadRemoteBills(true)
-  await saveCurrentRoomVersion()
+  if (offlineView.value) {
+    offlineView.value = false
+  }
+  await loadView()
   refreshing.value = false
 }
 
@@ -386,38 +611,26 @@ function loadSyncedBillsFromLocal() {
   listFinished.value = true
 }
 
-onMounted(async () => {
-  // 已确认过期的房间走本地缓存，不发起请求
-  if (isRoomExpired(roomId.value)) {
-    const cached = getCachedRoom(roomId.value)
-    if (cached) {
-      room.value = cached as RoomWithMembers
-      members.value = cached.members.map(m => ({ id: m.id, name: m.name }))
-      roomExpired.value = true
-      localOnly.value = true
-      loadSyncedBillsFromLocal()
-      return
-    }
-  }
+onMounted(() => {
+  loadView()
+})
 
-  if (!userId.value) {
-    showToast('无权限访问')
-    router.replace('/')
-    return
-  }
-
-  await loadRoom()
-  if (roomExpired.value) {
-    loadSyncedBillsFromLocal()
-  } else if (room.value) {
-    if (room.value.version !== lastBillsVersion.value) {
-      await loadRemoteBills(true)
-      lastBillsVersion.value = room.value.version
-      saveRoomVersion(room.value.version)
-    } else {
-      loadSyncedBillsFromLocal()
-    }
-  }
+watch(() => route.params.id, () => {
+  room.value = null
+  roomMode.value = 'online'
+  offlineView.value = false
+  legacyData.value = null
+  myMember.value = null
+  members.value = []
+  syncedBills.value = []
+  listLoading.value = false
+  listFinished.value = false
+  hasMoreRemote.value = true
+  remotePage.value = 0
+  editingBill.value = null
+  showBillForm.value = false
+  showActionSheet.value = false
+  loadView()
 })
 </script>
 
@@ -425,6 +638,13 @@ onMounted(async () => {
 .room-detail {
   min-height: 100vh;
   background: var(--color-bg);
+}
+.local-banner {
+  padding: 12px 16px;
+  background: #e6f7ff;
+  color: #1989fa;
+  font-size: 13px;
+  text-align: center;
 }
 .expired-banner {
   padding: 12px 16px;

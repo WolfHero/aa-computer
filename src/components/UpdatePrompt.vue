@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
-import { showToast } from 'vant'
 
 const { offlineReady, needRefresh, updateServiceWorker } = useRegisterSW()
 
@@ -15,8 +14,8 @@ watch(needRefresh, (value) => {
   if (value && !dismissedThisSession) showRefreshDialog.value = true
 })
 
-watch(offlineReady, (value) => {
-  // if (value) showToast('离线模式已就绪，可继续使用')
+watch(offlineReady, () => {
+  // 离线就绪提示暂不使用
 })
 
 function onCancel() {

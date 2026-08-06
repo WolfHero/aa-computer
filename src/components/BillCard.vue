@@ -8,10 +8,10 @@
     </template>
     <template #label>
       <div class="bill-meta">
-        <span>{{ bill.creator_name }}</span>
+        <span>{{ payerName }}</span>
         <span class="meta-sep">|</span>
         <span>{{ formatDate(bill.paid_at) }}</span>
-        <span v-if="!bill.synced" class="local-badge">本地</span>
+        <span v-if="showLocalBadge && !bill.synced" class="local-badge">本地</span>
       </div>
       <div class="bill-shared">
         <template v-for="(name, idx) in sharedNames" :key="idx">
@@ -31,18 +31,28 @@ import type { Bill, RoomMember } from '@/lib/types'
 const props = withDefaults(defineProps<{
   bill?: Bill | null
   members?: Pick<RoomMember, 'id' | 'name'>[]
+  showLocalBadge?: boolean
 }>(), {
   bill: null,
   members: () => [],
+  showLocalBadge: true,
 })
 
 const emit = defineEmits<{
   click: [bill: Bill]
 }>()
 
-const isSelfPay = computed(() =>
-  props.bill ? props.bill.shared_by.length === 1 && props.bill.shared_by[0] === props.bill.created_by : false
-)
+const isSelfPay = computed(() => {
+  if (!props.bill) return false
+  const payerId = props.bill.payer_id ?? props.bill.created_by
+  return props.bill.shared_by.length === 1 && props.bill.shared_by[0] === payerId
+})
+
+const payerName = computed(() => {
+  if (!props.bill) return ''
+  const payerId = props.bill.payer_id ?? props.bill.created_by
+  return props.members.find(m => m.id === payerId)?.name ?? props.bill.creator_name
+})
 
 const memberMap = computed(() => {
   const map = new Map<string, string>()

@@ -44,6 +44,12 @@
           @click-input="showTimePicker = true"
           @click-right-icon="showTimePicker = true"
         />
+        <van-field
+          name="payer"
+          label="付款人"
+          :model-value="payerName"
+          readonly
+        />
         <div class="sharer-section">
           <div class="sharer-label">分摊人员</div>
           <van-checkbox-group v-model="localData.sharedBy" direction="horizontal" @change="emitUpdate">
@@ -81,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { reactive, ref, watch, computed } from 'vue'
 import dayjs from 'dayjs'
 import { showConfirmDialog, showDialog } from 'vant'
 import type { ImportBillData, RoomMember } from '@/lib/types'
@@ -107,6 +113,11 @@ const showDatePicker = ref(false)
 const showTimePicker = ref(false)
 const paidDate = ref('')
 const paidTime = ref('')
+
+const payerName = computed(() => {
+  const payerId = props.billData.payerId ?? props.billData.createdBy
+  return props.members.find(m => m.id === payerId)?.name ?? ''
+})
 
 function parsePaidAt(paidAt: string): { date: string; time: string } {
   const d = dayjs(paidAt)

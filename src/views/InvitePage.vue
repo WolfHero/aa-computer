@@ -38,6 +38,8 @@ import { showToast } from '@/utils/toast'
 import { supabase } from '@/lib/supabaseClient'
 import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
+import { useLocalBills } from '@/composables/useLocalBills'
+import { useLocalRooms } from '@/composables/useLocalRooms'
 import { STORAGE_KEYS } from '@/utils/constants'
 import AppNavBar from '@/components/AppNavBar.vue'
 import PrivacyDialog from '@/components/PrivacyDialog.vue'
@@ -53,6 +55,8 @@ const route = useRoute()
 const router = useRouter()
 const { joinRoom } = useRooms()
 const { ensureAuth } = useAuth()
+const { getBills } = useLocalBills()
+const { getLegacyRoomData } = useLocalRooms()
 const name = ref('')
 const submitting = ref(false)
 const room = ref<RoomInfo | null>(null)
@@ -65,9 +69,8 @@ onMounted(async () => {
   const roomId = route.query.room_id as string
   if (!roomId) return
 
-  // 已有本地账单记录则直接跳转
-  const localBills = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_BILLS) || '{}')
-  if (Array.isArray(localBills[roomId]) && localBills[roomId].length > 0) {
+  // 已有本地账单记录（v2 或旧缓存）则直接跳转
+  if (getBills(roomId).length > 0 || getLegacyRoomData(roomId)) {
     router.replace({ path: `/room/${roomId}` })
     return
   }

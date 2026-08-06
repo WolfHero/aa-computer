@@ -14,20 +14,20 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from '@/utils/toast'
 import { useRemoteBills } from '@/composables/useRemoteBills'
-import type { SortMode } from '@/lib/types'
+import type { RoomMode, SortMode } from '@/lib/types'
 
 const props = withDefaults(defineProps<{
   show?: boolean
   roomId?: string
   sortMode?: SortMode
-  roomExpired?: boolean
-  localOnly?: boolean
+  mode?: RoomMode
+  legacy?: boolean
 }>(), {
   show: false,
   roomId: '',
   sortMode: 'created_at',
-  roomExpired: false,
-  localOnly: false,
+  mode: 'online',
+  legacy: false,
 })
 
 const emit = defineEmits<{
@@ -36,31 +36,44 @@ const emit = defineEmits<{
   'submit-bills': []
   'calculate-aa': []
   'delete-local': []
+  'rebuild': []
+  'export': []
 }>()
 
 const router = useRouter()
 const { submitBills } = useRemoteBills()
 
 const actions = computed(() => {
-  if (props.localOnly) {
+  const sortAction = {
+    name: props.sortMode === 'created_at' ? '切换为按付款时间排序' : '切换为按创建时间排序',
+    key: 'sort',
+  }
+  if (props.legacy || props.mode === 'expired') {
     return [
+      { name: props.legacy ? '迁移为本地房间' : '重建为本地房间', key: 'rebuild' },
       { name: '计算AA', key: 'aa' },
-      { name: props.sortMode === 'created_at' ? '切换为按付款时间排序' : '切换为按创建时间排序', key: 'sort' },
+      sortAction,
       { name: '房间设置', key: 'settings' },
       { name: '删除本地数据', key: 'delete-local', color: '#ee0a24' },
     ]
   }
-  const list = [
+  if (props.mode === 'local') {
+    return [
+      { name: '计算AA', key: 'aa' },
+      sortAction,
+      { name: '导入账单', key: 'import-bills' },
+      { name: '导出本地房间', key: 'export' },
+      { name: '房间设置', key: 'settings' },
+      { name: '删除本地数据', key: 'delete-local', color: '#ee0a24' },
+    ]
+  }
+  return [
     { name: '复制公共邀请链接', key: 'copy-invite' },
     { name: '计算AA', key: 'aa' },
-    { name: props.sortMode === 'created_at' ? '切换为按付款时间排序' : '切换为按创建时间排序', key: 'sort' },
+    sortAction,
+    { name: '导入账单', key: 'import-bills' },
+    { name: '房间设置', key: 'settings' },
   ]
-  // if (!props.roomExpired) {
-  //   list.push({ name: '强制提交付账记录', key: 'submit' })
-  // }
-  list.push({ name: '导入账单', key: 'import-bills' })
-  list.push({ name: '房间设置', key: 'settings' })
-  return list
 })
 
 async function onSelect(action: { key: string }) {
@@ -98,6 +111,12 @@ async function onSelect(action: { key: string }) {
       break
     case 'delete-local':
       emit('delete-local')
+      break
+    case 'rebuild':
+      emit('rebuild')
+      break
+    case 'export':
+      emit('export')
       break
   }
   emit('update:show', false)

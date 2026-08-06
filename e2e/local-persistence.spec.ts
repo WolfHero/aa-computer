@@ -8,11 +8,12 @@ function buildSeedScript(
   roomId: string,
   roomName: string,
   nickname: string,
+  mode: 'local' | 'expired' = 'local',
 ) {
   return `
 (() => {
   localStorage.setItem('aa_privacy_accepted', '1')
-  localStorage.setItem('aa_cached_rooms', JSON.stringify({
+  localStorage.setItem('aa_local_rooms_v2', JSON.stringify({
     ["${roomId}"]: {
       id: "${roomId}",
       name: "${roomName}",
@@ -20,12 +21,16 @@ function buildSeedScript(
       version: 1,
       created_at: "2026-05-27T08:00:00.000Z",
       updated_at: "2026-05-27T08:00:00.000Z",
+      settings: {},
+      owner_id: null,
+      mode: "${mode}",
+      self_member_id: "member-1",
       members: [
-        { id: "member-1", name: "${nickname}", user_id: "local-user" },
+        { id: "member-1", name: "${nickname}", user_id: null, is_unsubmitted: false, created_at: "2026-05-27T08:00:00.000Z" },
       ],
     },
   }))
-  localStorage.setItem('aa_local_bills', JSON.stringify({
+  localStorage.setItem('aa_local_bills_v2', JSON.stringify({
     ["${roomId}"]: [
       {
         local_id: "bill-1",
@@ -41,10 +46,6 @@ function buildSeedScript(
       },
     ],
   }))
-  localStorage.setItem('aa_room_versions', JSON.stringify({
-    ["${roomId}"]: 1,
-  }))
-  localStorage.setItem('aa_expired_rooms', JSON.stringify(["${roomId}"]))
 })()
 `
 }
@@ -156,7 +157,7 @@ test.describe('local-room-persistence 完整设计验证', () => {
   // 设计规格：首页房间列表 = 本地 + 后端返回去重，本地房间带标记
   // ====================================================================
   test('流程2: 本地房间在首页显示并标记为本地', async ({ page }) => {
-    await page.addInitScript(buildSeedScript(LOCAL_ROOM_ID, LOCAL_ROOM_NAME, NICKNAME))
+    await page.addInitScript(buildSeedScript(LOCAL_ROOM_ID, LOCAL_ROOM_NAME, NICKNAME, 'local'))
 
     await page.goto('/')
     await page.waitForSelector('.home-page')
@@ -175,7 +176,7 @@ test.describe('local-room-persistence 完整设计验证', () => {
   // 设计规格：点击本地房间 → 过期横幅 → 可查看不可新增/编辑
   // ====================================================================
   test('流程3: 过期房间只读模式 · 可查看不可修改', async ({ page }) => {
-    await page.addInitScript(buildSeedScript(LOCAL_ROOM_ID, LOCAL_ROOM_NAME, NICKNAME))
+    await page.addInitScript(buildSeedScript(LOCAL_ROOM_ID, LOCAL_ROOM_NAME, NICKNAME, 'expired'))
 
     // 直接导航到房间页面
     await page.goto(`/room/${LOCAL_ROOM_ID}`)
@@ -198,7 +199,7 @@ test.describe('local-room-persistence 完整设计验证', () => {
   // 设计规格：设置页有删除按钮 → 确认弹窗 → 房间从列表消失
   // ====================================================================
   test('流程4: 从设置页删除本地房间', async ({ page }) => {
-    await page.addInitScript(buildSeedScript(LOCAL_ROOM_ID, LOCAL_ROOM_NAME, NICKNAME))
+    await page.addInitScript(buildSeedScript(LOCAL_ROOM_ID, LOCAL_ROOM_NAME, NICKNAME, 'local'))
 
     // 直接导航到房间页面
     await page.goto(`/room/${LOCAL_ROOM_ID}`)

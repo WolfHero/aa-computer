@@ -104,7 +104,7 @@ test.describe('AA 计算结果缓存与过期房间 E2E', () => {
     // -- 验证 localStorage 缓存 --
     await test.step('localStorage 缓存 AA 结果', async () => {
       const cached = await page.evaluate(() => {
-        const raw = localStorage.getItem('aa_local_aa_results')
+        const raw = localStorage.getItem('aa_local_aa_v2')
         return raw ? JSON.parse(raw) : null
       })
       expect(cached).not.toBeNull()
@@ -176,7 +176,7 @@ test.describe('AA 计算结果缓存与过期房间 E2E', () => {
 
     // 验证 localStorage 已缓存
     const cachedAfterFirstVisit = await page.evaluate(() => {
-      const raw = localStorage.getItem('aa_local_aa_results')
+      const raw = localStorage.getItem('aa_local_aa_v2')
       return raw ? JSON.parse(raw) : null
     })
     expect(cachedAfterFirstVisit).not.toBeNull()
@@ -207,7 +207,7 @@ test.describe('AA 计算结果缓存与过期房间 E2E', () => {
 
       // 验证缓存数据未丢失
       const cachedAfterRefresh = await page.evaluate(() => {
-        const raw = localStorage.getItem('aa_local_aa_results')
+        const raw = localStorage.getItem('aa_local_aa_v2')
         return raw ? JSON.parse(raw) : null
       })
       expect(cachedAfterRefresh).not.toBeNull()
@@ -273,7 +273,7 @@ test.describe('AA 计算结果缓存与过期房间 E2E', () => {
     await expect(page.locator('.aa-summary')).toBeVisible()
 
     const versionBefore = await page.evaluate((rid: string) => {
-      const raw = localStorage.getItem('aa_local_aa_results')
+      const raw = localStorage.getItem('aa_local_aa_v2')
       if (!raw) return -1
       const parsed = JSON.parse(raw)
       return parsed[rid]?.version ?? -1
@@ -305,14 +305,17 @@ test.describe('AA 计算结果缓存与过期房间 E2E', () => {
     await page.addInitScript(
       ({ rid, rname, mSelf, mOther }) => {
         localStorage.setItem('aa_privacy_accepted', '1')
-        // 过期房间缓存
-        localStorage.setItem('aa_cached_rooms', JSON.stringify({
+        // 过期房间缓存（v2）
+        localStorage.setItem('aa_local_rooms_v2', JSON.stringify({
           [rid]: {
             id: rid,
             name: rname,
             description: 'E2E 过期房间 AA 测试',
             version: 3,
-            owner_id: 'exp-owner',
+            owner_id: null,
+            mode: 'expired',
+            self_member_id: mSelf.id,
+            settings: {},
             created_at: '2026-05-27T08:00:00.000Z',
             updated_at: '2026-05-27T08:00:00.000Z',
             members: [
@@ -321,10 +324,8 @@ test.describe('AA 计算结果缓存与过期房间 E2E', () => {
             ],
           },
         }))
-        // 过期房间标记
-        localStorage.setItem('aa_expired_rooms', JSON.stringify([rid]))
         // AA 结果缓存（version 与房间一致 = 3）
-        localStorage.setItem('aa_local_aa_results', JSON.stringify({
+        localStorage.setItem('aa_local_aa_v2', JSON.stringify({
           [rid]: {
             id: '',
             room_id: rid,
@@ -375,7 +376,7 @@ test.describe('AA 计算结果缓存与过期房间 E2E', () => {
 
     // 验证缓存未被清除
     const cached = await page.evaluate((rid: string) => {
-      const raw = localStorage.getItem('aa_local_aa_results')
+      const raw = localStorage.getItem('aa_local_aa_v2')
       if (!raw) return null
       return JSON.parse(raw)[rid] ?? null
     }, roomId)
