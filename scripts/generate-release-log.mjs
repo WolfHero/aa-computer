@@ -12,6 +12,9 @@
  * - 合并进来的需求：提交日期取合并提交日期，开发者取原提交作者
  * - 更新类型：feature（新功能）/ perf（性能优化）/ fix（缺陷修复）/ dev（开发侧调整）
  * - 类型优先使用下方显式映射，未覆盖的按提交信息规则推断
+ * - 排序按完整提交时间倒序：普通提交用提交时间（%cI，与 git log 一致），
+ *   合并进来的提交用合并提交时间；同日同秒按 git rev-list 顺序兜底；
+ *   date 字段只保留到天，用于页面分组展示
  * - generatedAt 取主分支最新提交日期，保证同一提交重复构建产物一致
  *
  * 用法：pnpm exec node scripts/generate-release-log.mjs
@@ -136,9 +139,9 @@ function cleanTitle(subject) {
 }
 
 function commitInfo(hash) {
-  const raw = git(['show', '-s', '--format=%an%x00%ae%x00%aI%x00%s%x00%b', hash])
-  const [developer, email, date, subject, body = ''] = raw.split('\0')
-  return { hash, developer, email, date, subject, body: body.trim() }
+  const raw = git(['show', '-s', '--format=%an%x00%ae%x00%aI%x00%cI%x00%s%x00%b', hash])
+  const [developer, email, date, commitDate, subject, body = ''] = raw.split('\0')
+  return { hash, developer, email, date, commitDate, subject, body: body.trim() }
 }
 
 function mergeDateFor(commit, main) {
@@ -179,6 +182,8 @@ const firstParentSet = new Set(firstParent)
 
 const entries = []
 const seen = new Set()
+const entryTimes = new Map()
+const entrySeq = new Map()
 
 for (const hash of all) {
   if (seen.has(hash)) continue
@@ -192,11 +197,14 @@ for (const hash of all) {
   const date = mergedIn
     ? (mergeDateFor(hash, main) ?? info.date)
     : info.date
+  const id = hash.slice(0, 7)
 
+  entryTimes.set(id, mergedIn ? date : info.commitDate)
+  entrySeq.set(id, entries.length)
   entries.push({
-    id: hash.slice(0, 7),
-    type: classify(info.subject, hash.slice(0, 7)),
-    title: TITLE_OVERRIDES[hash.slice(0, 7)] ?? cleanTitle(info.subject),
+    id,
+    type: classify(info.subject, id),
+    title: TITLE_OVERRIDES[id] ?? cleanTitle(info.subject),
     developer: info.developer,
     date: date.slice(0, 10),
     body: info.body,
@@ -204,7 +212,12 @@ for (const hash of all) {
   })
 }
 
-entries.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? 1 : -1))
+entries.sort((a, b) => {
+  const ta = Date.parse(entryTimes.get(a.id) ?? a.date)
+  const tb = Date.parse(entryTimes.get(b.id) ?? b.date)
+  if (ta !== tb) return tb - ta
+  return (entrySeq.get(a.id) ?? 0) - (entrySeq.get(b.id) ?? 0)
+})
 
 const payload = {
   mainBranch: main,
