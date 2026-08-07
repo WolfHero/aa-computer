@@ -16,9 +16,27 @@
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
   },
 
-  // 挂载宿主机 SSH 凭据 (~/.ssh), 使容器内 git push 直接可用 (需 Rebuild Container 生效)
-  // 私钥要求无口令, 或用 ssh-agent 转发; GitHub 主机指纹由 setup.sh 预写入 known_hosts
+  // IO 优化: 把 node_modules 与 pnpm store 放到命名卷, 避免大量小文件走
+  // Windows bind mount (NTFS -> VirtioFS/9p) 导致的性能损耗和 9p 卡死问题。
+  // 源码等仍保持 bind mount, 与宿主机实时同步关系不变。
+  // - 同一个卷挂两个位置, pnpm 硬链接 (store -> node_modules) 才能生效
+  // - 命名卷跨容器重建保留, 依赖只需在卷首次创建时安装一次
+  // - 首次挂载时 Docker 会把宿主机 node_modules/.pnpm-store 复制进卷 (仅一次较慢)
+  // - 注意: 容器内 node_modules 与宿主机不再共享; 若删除该卷, 需在容器内重新 pnpm install
+  // 空卷首次挂载属主为 root, setup.sh 会自动 chown 给 node (幂等)
+  // 改动后需 Rebuild Container 生效
   "mounts": [
+    {
+      "source": "aa-computer-deps",
+      "target": "/workspaces/aa-computer/node_modules",
+      "type": "volume"
+    },
+    {
+      "source": "aa-computer-deps",
+      "target": "/workspaces/aa-computer/.pnpm-store",
+      "type": "volume"
+    },
+    // 宿主机 SSH 凭据 (~/.ssh) 挂载, 容器内 git push 直接可用 (需 Rebuild Container 生效)
     {
       "source": "${localEnv:USERPROFILE}/.ssh",
       "target": "/home/node/.ssh",

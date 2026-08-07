@@ -8,6 +8,13 @@ if [ ! -f .env ]; then
   echo ">>> 已从 .env.template 生成 .env (占位值, 请按需修改)"
 fi
 
+# 依赖卷 (aa-computer-deps) 首次挂载为空卷, 属主为 root, pnpm 无法写入;
+# 这里把属主修正为 node (幂等, 卷重建后重跑 setup.sh 即可; sudo 已由 Dockerfile 配置)
+if [ -d node_modules ] && [ -d .pnpm-store ]; then
+  echo ">>> 修正依赖卷属主 (node)"
+  sudo chown node:node node_modules .pnpm-store
+fi
+
 echo ">>> pnpm install"
 pnpm install
 
@@ -30,8 +37,10 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
 done
 
 # ---- 接入宿主机 Git SSH 凭据 (devcontainer.json 已挂载 ~/.ssh) ----
+# Windows bind mount 不支持 chmod (会报 Operation not permitted), 这里全部 best-effort;
+# 若 git push 报私钥权限过宽 (Permissions too open), 请改用 ssh-agent 转发 (见 devcontainer.json 注释)
 if [ -d "$HOME/.ssh" ] && ls "$HOME/.ssh"/id_* >/dev/null 2>&1; then
-  chmod 700 "$HOME/.ssh"
+  chmod 700 "$HOME/.ssh" 2>/dev/null || true
   chmod 600 "$HOME/.ssh"/id_* 2>/dev/null || true
   chmod 644 "$HOME/.ssh"/*.pub 2>/dev/null || true
   if ! grep -q '^github.com ' "$HOME/.ssh/known_hosts" 2>/dev/null; then

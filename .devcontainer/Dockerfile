@@ -44,7 +44,7 @@ RUN npm install -g @openai/codex
 
 # ---- Playwright 系统依赖 (E2E; 构建时安装一次, 浏览器二进制由 setup.sh 按项目版本补齐) ----
 # 版本与 package.json 中 @playwright/test 保持一致
-RUN npx --yes playwright@1.60.0 install-deps chromium
+RUN PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright npx --yes playwright@1.60.0 install-deps chromium
 
 USER node
 WORKDIR /workspaces/aa-computer
