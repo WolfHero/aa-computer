@@ -3,6 +3,24 @@
   "generatedAt": "2026-08-08",
   "entries": [
     {
+      "id": "fcd72fa",
+      "type": "dev",
+      "title": "chore(release): 1.0.1",
+      "developer": "WolfHero",
+      "date": "2026-08-08",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "08b49bf",
+      "type": "fix",
+      "title": "修复更新日志同日内排序与 git 不一致（按提交时间倒序）",
+      "developer": "WolfHero",
+      "date": "2026-08-08",
+      "body": "",
+      "remark": ""
+    },
+    {
       "id": "856b9b9",
       "type": "dev",
       "title": "devcontainer 依赖卷化提升 IO 性能并修复初始化脚本",
