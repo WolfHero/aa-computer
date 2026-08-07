@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.0.1](https://github.com/WolfHero/aa-computer/compare/v1.0.0...v1.0.1) (2026-08-07)
+
+### Bug Fixes
+
+* 修复更新日志同日内排序与 git 不一致（按提交时间倒序） ([08b49bf](https://github.com/WolfHero/aa-computer/commit/08b49bfa9ed4abeafeeba1e71e05b2c2d479b843))
 ## 1.0.0 (2026-08-07)
 
 ### Features

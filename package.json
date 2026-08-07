@@ -1,7 +1,7 @@
 {
   "name": "aa-computer",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "author": "WolfHero",
   "homepage": "https://github.com/WolfHero/aa-computer",
@@ -51,6 +51,9 @@
     "workbox-window": "^7.4.1"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["sharp", "supabase"]
+    "onlyBuiltDependencies": [
+      "sharp",
+      "supabase"
+    ]
   }
 }
