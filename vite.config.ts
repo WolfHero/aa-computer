@@ -1,7 +1,13 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
+
+// 单一版本数据源：package.json（commit-and-tag-version 负责维护）
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8')
+) as { version: string }
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -56,6 +62,9 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
   },
   server: {
     host: true,

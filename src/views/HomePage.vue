@@ -57,7 +57,7 @@
     <van-action-sheet
       v-model:show="showActionSheet"
       :actions="settingsActions"
-      title="AA计算器 Ver0.1 Beta"
+      :title="`AA计算器 v${appVersion}`"
       cancel-text="取消"
       close-on-click-action
       @select="onSettingsSelect"
@@ -119,6 +119,7 @@ import RoomCreateDialog from '@/components/RoomCreateDialog.vue'
 import PrivacyDialog from '@/components/PrivacyDialog.vue'
 
 const router = useRouter()
+const appVersion = __APP_VERSION__
 const { theme, toggleTheme } = useTheme()
 const { userId, getRefreshToken, refreshSession } = useAuth()
 const { rooms, loading, finished, fetchRooms } = useRooms()
