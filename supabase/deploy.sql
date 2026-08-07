@@ -311,6 +311,42 @@ $$;
 -- ============================================
 -- Migration 6: update_bill + delete_bill functions
 -- ============================================
+
+-- 早期版本（无 payer_id）的 update_bill 签名，保留以兼容旧版本客户端缓存
+create or replace function update_bill(
+  p_bill_id uuid,
+  p_room_id uuid,
+  p_content text,
+  p_amount numeric,
+  p_paid_at timestamptz,
+  p_shared_by uuid[],
+  p_creator_name text
+)
+returns void
+language plpgsql
+security definer
+set search_path = 'public'
+as $$
+begin
+  if not exists (select 1 from room_members where room_id = p_room_id and user_id = auth.uid()::text) then
+    raise exception 'Not a member of this room';
+  end if;
+
+  update bills
+  set content = p_content,
+      amount = p_amount,
+      paid_at = p_paid_at,
+      shared_by = p_shared_by,
+      creator_name = p_creator_name
+  where id = p_bill_id and room_id = p_room_id;
+
+  update rooms
+  set version = version + 1,
+      updated_at = now()
+  where id = p_room_id;
+end;
+$$;
+
 create or replace function update_bill(
   p_bill_id uuid,
   p_room_id uuid,
@@ -410,6 +446,22 @@ ALTER TABLE bills ALTER COLUMN content TYPE varchar(80);
 ALTER TABLE bills ALTER COLUMN creator_name TYPE varchar(20);
 
 -- ============================================
+-- Migration 8: Cleanup orphan anonymous users
+-- ============================================
+
+create or replace function cleanup_orphan_anonymous_users()
+returns void
+language plpgsql
+security definer
+set search_path = 'public, auth'
+as $$
+begin
+  delete from auth.users
+  where is_anonymous = true
+    and not exists (
+      select 1 from public.room_members
+      where room_members.user_id = auth.users.id::text
+    );
 end;
 $$;
 
@@ -556,7 +608,7 @@ create or replace function generate_member_invite_token(p_member_id uuid)
 returns text
 language plpgsql
 security definer
-set search_path = 'public, extensions'
+set search_path = 'public'
 as $$
 declare
   v_token text;
@@ -594,6 +646,53 @@ create trigger trg_check_member_in_bills
   before delete on room_members
   for each row
   execute function check_member_in_bills();
+
+-- ============================================
+-- Migration 13: Safe room deletion (delete_room) + cleanup via delete_room
+-- ============================================
+
+-- 1. Safe room deletion function
+--    Deletes child rows in the correct order: bills -> room_members -> aa_results -> rooms
+--    This ensures trg_check_member_in_bills won't find matching bills when
+--    deleting room_members, avoiding the "该成员已在账单分摊中" exception.
+create or replace function delete_room(p_room_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = 'public'
+as $$
+begin
+  -- Delete bills first to remove shared_by references to room_members
+  delete from bills where room_id = p_room_id;
+
+  -- Then delete room_members (trigger trg_check_member_in_bills won't
+  -- find any matching bills for this room, so it won't raise)
+  delete from room_members where room_id = p_room_id;
+
+  -- Delete AA result cache
+  delete from aa_results where room_id = p_room_id;
+
+  -- Finally delete the room itself
+  delete from rooms where id = p_room_id;
+end;
+$$;
+
+-- 2. Update cleanup function to query expired rooms and call delete_room
+create or replace function cleanup_expired_rooms()
+returns void
+language plpgsql
+security definer
+set search_path = 'public'
+as $$
+declare
+  v_rec record;
+begin
+  for v_rec in select id from rooms where updated_at < now() - interval '7 days'
+  loop
+    perform delete_room(v_rec.id);
+  end loop;
+end;
+$$;
 
 -- Fix AA calculation inflated by a Cartesian product of two bills joins.
 --
