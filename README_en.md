@@ -86,6 +86,8 @@ See [ROADMAP.md](ROADMAP.md) for the project's development plans and future dire
 - **Node.js** >= 18, **pnpm** (`npm i -g pnpm`)
 - **Supabase** account (free tier works) or Docker (for local Supabase CLI)
 
+> Full self-hosting guide (Chinese: self-hosted Supabase + frontend deployment + Windows/macOS/Linux notes): [docs/self-hosting.md](docs/self-hosting.md)
+
 ---
 
 ### Option 1: Supabase Cloud (Recommended)

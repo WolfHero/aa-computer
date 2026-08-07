@@ -1,0 +1,2 @@
+# 保证容器内 shell 脚本始终以 LF 检出，避免 Windows 检出 CRLF 导致启动失败
+docs/self-hosting/kong-entrypoint.sh text eol=lf

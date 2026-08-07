@@ -86,6 +86,8 @@ src/
 
 ## 自部署
 
+> **完整自部署指南**（自托管 Supabase + 前端部署 + Windows/macOS/Linux 平台差异）：[docs/self-hosting.md](docs/self-hosting.md)
+
 ### 前提条件
 
 - **Node.js** >= 18，**pnpm**（`npm i -g pnpm`）

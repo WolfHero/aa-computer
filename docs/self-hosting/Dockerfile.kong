@@ -1,0 +1,5 @@
+FROM public.ecr.aws/supabase/kong:2.8.1
+
+# kong-entrypoint.sh 在容器启动时用 .env 里的密钥渲染 kong.yml
+COPY kong.template.yml /home/kong/kong.template.yml
+COPY kong-entrypoint.sh /home/kong/kong-entrypoint.sh

@@ -1,0 +1,5 @@
+FROM public.ecr.aws/supabase/postgres:17.6.1.106
+
+# 首次初始化时把内部角色密码和 JWT 配置写入数据库（只在空数据卷时执行）。
+# 注意：文件名以 z 开头，确保在镜像自带的 migrate.sh 之后执行（角色已创建）。
+COPY db-init/zz-passwords.sql /docker-entrypoint-initdb.d/zz-passwords.sql
