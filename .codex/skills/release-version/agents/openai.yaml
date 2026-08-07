@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release Version"
+  short_description: "发布 aa-computer 新版本：SemVer bump、打 tag、推送与验证"
+  default_prompt: "Use $release-version to release the next app version."
