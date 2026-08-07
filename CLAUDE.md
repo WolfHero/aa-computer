@@ -8,14 +8,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `pnpm dev` — Start Vite dev server
 - `pnpm dev:container` — Start Vite dev server using `.env.container` (container-internal Supabase URL)
-- `pnpm build` — Type-check with vue-tsc + Vite build
+- `pnpm build` — Generate changelog (`scripts/generate-release-log.mjs`) + Type-check with vue-tsc + Vite build
 - `pnpm preview` — Preview production build
-- `pnpm exec playwright test` — Run all E2E tests (needs dev server + Supabase running). Tests in `e2e/`: `aa-calculation.spec.ts`, `local-persistence.spec.ts`, `member-management.spec.ts`, `debug.spec.ts`
+- `pnpm exec playwright test` — Run all E2E tests (needs dev server + Supabase running). Tests in `e2e/`: `aa-calculation.spec.ts`, `debug.spec.ts`, `import.spec.ts`, `lifecycle.spec.ts`, `local-mode.spec.ts`, `local-persistence.spec.ts`, `member-management.spec.ts`, `privacy.spec.ts`, `pwa.spec.ts`
 - `pnpm test:container` — Run E2E tests with container env (`.env.container`), for tests inside the dev container
 - `pnpm exec playwright test --grep "test-name-pattern"` — Run specific E2E tests
 - `pnpm exec playwright test e2e/pwa.spec.ts` — Run PWA tests (needs `pnpm build && pnpm preview --port 4173 --strictPort` running; skips automatically if preview is not up)
+- `node scripts/generate-release-log.mjs` — Regenerate `src/data/release-log.json` from git history (主分支过滤、合并日期归因、WIP 排除、四类更新分类)；`pnpm build` 会自动执行
 - Supabase: use `npx supabase` commands (local instance at `http://127.0.0.1:54321`)
 - `npx supabase db reset` — Reset local DB and re-run all migrations
+- ESA 部署/部署状态检查：使用 **npm 全局安装**的 `esa-cli`（如 `esa-cli deployments list --skip-update-check`），不要用 `pnpm exec esa-cli`——项目内依赖在部分开发容器（9p 文件系统）上会因模块加载卡死
 
 ### Git commit
 - 使用 Bash 工具执行 `git commit` 时，用 `"$(cat <<'EOF'\n...\nEOF\n)"` 传递多行消息
@@ -34,18 +36,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `ag-grid-community` + `ag-grid-vue3` (import preview grid in ImportPage)
 - `papaparse` (CSV parsing), `xlsx` (SheetJS, XLSX parsing)
 - `dayjs` (date parsing in ImportPage with custom format plugin)
+- `markdown-it` (更新日志正文渲染，`html: false` + linkify)
+- `scripts/generate-release-log.mjs` — 从 git 记录生成 `src/data/release-log.json`，随 `pnpm build` 自动执行；ESA 部署时自动产出最新日志
 - `src/utils/` — `constants.ts` (storage keys, page sizes), `format.ts` (currency, date), `toast.ts` (Vant toast wrapper), `importParser.ts` (XLSX/CSV → `ParsedSheet[]`)
 
 ### Routes (src/router/index.ts)
 | Path | Page | Purpose |
 |------|------|---------|
-| `/` | HomePage | Room list (local+remote), create room, about/privacy, cross-device login |
+| `/` | HomePage | Room list (local+remote), create room, about/privacy, cross-device login；设置菜单含深色模式与更新日志入口 |
 | `/invite` | InvitePage | Join room via `?room_id=` |
 | `/invite/member` | InviteMemberPage | Join via member invite token `?token=` |
 | `/room/:id` | RoomDetailPage | Bill list (paginated), add/edit/delete bills, submit to server |
 | `/room/:id/aa` | AACalculationPage | AA result chart + related bills list |
 | `/room/:id/settings` | RoomSettingsPage | Room info, member list (owner CRUD, invite links), delete local data |
 | `/room/:id/import` | ImportPage | Import bills from XLSX/CSV (AG-Grid preview, column mapping, filter conditions) |
+| `/changelog` | ChangelogPage | 更新日志列表（按日期分组，类型徽章） |
+| `/changelog/:id` | ChangelogDetailPage | 更新详情（开发者/日期/正文 markdown 渲染/备注） |
 
 ### Data Flow
 1. **Local rooms (default)**: New rooms are created in `aa_local_rooms_v2` / `aa_local_bills_v2` without auth; bills/members/import/AA are fully offline. `useLocalAA` replicates `calculate_aa` in TS; local room version bumps on every bill/member change to invalidate the AA cache
@@ -63,6 +69,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `useLocalAA` — pure TS replication of `calculate_aa` for local/expired rooms, cached in `aa_local_aa_v2`
 - `useLocalBackup` — local room export/import (`aa-local-room-v1` JSON)
 - `useRoomLifecycle` — rebuild expired room as local, migrate v1 cache to v2, delete all local room data
+- `useTheme` — 深色模式：localStorage `aa_theme` 持久化 + 首次跟随 `prefers-color-scheme`，驱动 `[data-theme='dark']` 与 Vant ConfigProvider
 
 ### Owner / Invite System
 - Local room creator is identified by `self_member_id`; conversion binds that member to the anonymous user and sets `rooms.owner_id`
@@ -85,7 +92,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Date parsing**: supports `YYYY-M-D HH:mm`, `YYYY/MM/DD`, serial Excel date numbers, Chinese date chars (年月日)
 - **Save flow**: `addBills()` → localStorage → `submitBills()` push to Supabase → navigate back to room detail
 - Uses AG-Grid (AllCommunityModule) for data preview with highlighted mapping cells, AG-Grid theme `legacy`
-- AG-Grid overrides in global `<style>` for compact cell rendering (line-height: 28px, 12px font)
+- AG-Grid CSS 类按主题切换 `ag-theme-quartz` / `ag-theme-quartz-dark`（gridOptions.theme 仍为 `legacy`）；全局 `<style>` 覆盖紧凑渲染（line-height: 28px, 12px font）
 
 ### Key Patterns
 - **van-list pagination**: `immediate-check="false"` to prevent double-fetch on mount; `@load` handler increments page; `finished` when returned data < page size
@@ -114,13 +121,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `RoomCreateDialog` — Dialog for creating new rooms (name, description, creator nickname)
 - `RoomSettingsActionSheet` — Action sheet with sort toggle, submit bills, AA calculate, settings, delete local
 - `PrivacyDialog` — Privacy policy acceptance dialog (shown on first visit)
+- `UpdatePrompt` — PWA 新版本提示（「发现新版本」弹窗 + 更新日志入口 + 返回后重新弹出）
+- `ChangelogPage` / `ChangelogDetailPage` — 更新日志两级页面（列表 / 详情）
 
 ### Style
-- CSS variables in `src/style.css`: `--color-primary`, `--color-bg`, `--color-text`, `--color-text-secondary`, `--color-border`
-- Vant theme overrides via `--van-*` CSS variables
+- CSS variables in `src/style.css`: 语义色 `--color-primary/bg/surface/surface-raised/text/text-secondary/border`、状态 tint `--color-tint-*`、`--color-danger`；`[data-theme='dark']` 覆盖块为 One Dark 配色
+- 深色模式：`useTheme` + App.vue 的 `van-config-provider`；AG-Grid 用 `ag-theme-quartz-dark`，ECharts 用官方 dark 主题
 - Pages use `min-height: 100vh; background: var(--color-bg)`
+
+### PWA 更新
+- 更新提示在 `UpdatePrompt.vue`（App.vue 内），`registerType: 'prompt'`；注册后主动 `registration.update()` 强制检查
+- 本地预览（如 4173）会注册 SW，旧版本会赖在浏览器缓存里；刷新看不到新内容时清站点数据或换端口（SW 按端口隔离）
+- 测更新流程：「两段构建」——构建 → 访问装 SW → 改代码再构建 → 刷新应弹「发现新版本」；点「更新日志」去 changelog 后返回，弹窗会重新出现
 
 ### Known Caveats
 - Vant 4.9.24 `van-date-picker` crashes when passing `Date` to `model-value`; use `string[]` instead
 - `van-list` fires `@load` on mount unless `immediate-check="false"`, causing duplicate requests
 - Local Supabase anonymous user data is stored in Docker container; lost on container restart
+- 开发容器中 `pnpm exec esa-cli` 可能因 9p 文件系统问题在模块加载时卡死；用 npm 全局安装的 esa-cli
