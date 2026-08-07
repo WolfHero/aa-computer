@@ -34,7 +34,6 @@ const emit = defineEmits<{
   'update:show': [value: boolean]
   'update:sortMode': [value: SortMode]
   'submit-bills': []
-  'calculate-aa': []
   'delete-local': []
   'rebuild': []
   'export': []
@@ -51,7 +50,6 @@ const actions = computed(() => {
   if (props.legacy || props.mode === 'expired') {
     return [
       { name: props.legacy ? '迁移为本地房间' : '重建为本地房间', key: 'rebuild' },
-      { name: '计算AA', key: 'aa' },
       sortAction,
       { name: '房间设置', key: 'settings' },
       { name: '删除本地数据', key: 'delete-local', color: 'var(--color-danger)' },
@@ -59,7 +57,6 @@ const actions = computed(() => {
   }
   if (props.mode === 'local') {
     return [
-      { name: '计算AA', key: 'aa' },
       sortAction,
       { name: '导入账单', key: 'import-bills' },
       { name: '导出本地房间', key: 'export' },
@@ -69,7 +66,6 @@ const actions = computed(() => {
   }
   return [
     { name: '复制公共邀请链接', key: 'copy-invite' },
-    { name: '计算AA', key: 'aa' },
     sortAction,
     { name: '导入账单', key: 'import-bills' },
     { name: '房间设置', key: 'settings' },
@@ -88,9 +84,6 @@ async function onSelect(action: { key: string }) {
       }
       break
     }
-    case 'aa':
-      emit('calculate-aa')
-      break
     case 'sort':
       emit('update:sortMode', props.sortMode === 'created_at' ? 'paid_at' : 'created_at')
       break

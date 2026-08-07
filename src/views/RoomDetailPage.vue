@@ -51,7 +51,16 @@
 
     <div v-if="roomMode === 'online'" class="bottom-notice">服务端数据将于最后一次编辑的七天后清除</div>
 
-    <van-back-top />
+    <van-button
+      class="calculate-aa-btn"
+      round
+      size="small"
+      @click="onCalculateAAButtonClick"
+    >
+      <van-icon name="balance-o" /> 计算AA
+    </van-button>
+
+    <van-back-top :bottom="80" />
 
     <BillForm
       v-model:show="showBillForm"
@@ -74,7 +83,6 @@
       :legacy="roomMode === 'legacy'"
       @update:sort-mode="onSortModeChange"
       @submit-bills="onBillsSubmitted"
-      @calculate-aa="onCalculateAA"
       @delete-local="onDeleteLocal"
       @rebuild="onRebuild"
       @export="onExport"
@@ -513,6 +521,21 @@ async function saveCurrentRoomVersion() {
   }
 }
 
+const hasBills = computed(() => {
+  if (roomMode.value === 'legacy') {
+    return (legacyData.value?.bills.length ?? 0) > 0
+  }
+  return getBills(roomId.value).length > 0 || (syncedBills.value?.length ?? 0) > 0
+})
+
+function onCalculateAAButtonClick() {
+  if (!hasBills.value) {
+    showToast('请先添加账单')
+    return
+  }
+  onCalculateAA()
+}
+
 async function onCalculateAA() {
   if (roomMode.value === 'online' && !offlineView.value) {
     try {
@@ -668,5 +691,18 @@ watch(() => route.params.id, () => {
 .empty-state p {
   margin-top: 16px;
   font-size: 14px;
+}
+.calculate-aa-btn {
+  position: fixed;
+  right: 30px;
+  bottom: 40px;
+  z-index: 100;
+  background: var(--van-primary-color, var(--color-primary, #1989fa));
+  color: #fff;
+  border: none;
+  padding: 0 14px;
+  line-height: 36px;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 </style>

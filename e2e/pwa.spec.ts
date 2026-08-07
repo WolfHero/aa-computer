@@ -155,10 +155,8 @@ test.describe('PWA 安装与离线访问', () => {
     await page.locator('.van-dialog .van-button--primary').filter({ hasText: '保存' }).click()
     await expect(page.getByText(editedContent)).toBeVisible({ timeout: 20000 })
 
-    // 断网本地 AA 计算
-    await page.locator('.van-nav-bar__right').getByText('菜单').click()
-    await page.waitForSelector('.van-action-sheet', { state: 'visible' })
-    await page.getByText('计算AA').click()
+    // 断网本地 AA 计算（房间详情页常驻按钮）
+    await page.locator('.calculate-aa-btn').click()
     await page.waitForSelector('.aa-page', { timeout: 15000 })
     await page.waitForTimeout(2500)
     await expect(page.locator('.aa-summary')).toBeVisible()
