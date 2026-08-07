@@ -175,7 +175,7 @@ async function onDelete() {
     await showConfirmDialog({
       title: '删除',
       message: '确定删除此账单吗？',
-      confirmButtonColor: '#ee0a24',
+      confirmButtonColor: 'var(--color-danger)',
     })
     emit('delete')
   } catch {

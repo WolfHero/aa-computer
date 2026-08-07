@@ -10,6 +10,22 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="AA计算器" />
     <title>AA计算器</title>
+    <script>
+      // 首帧前应用主题，避免刷新时闪白/闪黑
+      (function () {
+        try {
+          var theme = localStorage.getItem('aa_theme')
+          if (theme !== 'light' && theme !== 'dark') {
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+          }
+          document.documentElement.dataset.theme = theme
+          var meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.content = theme === 'dark' ? '#282c34' : '#1989fa'
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body autocomplete="off">
     <div id="app"></div>

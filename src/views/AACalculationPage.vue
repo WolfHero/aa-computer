@@ -354,8 +354,8 @@ watch(() => route.params.id, () => {
 }
 .stale-banner {
   padding: 12px 16px;
-  background: #fff7e6;
-  color: #e6a23c;
+  background: var(--color-tint-warning-bg);
+  color: var(--color-tint-warning-text);
   font-size: 13px;
   display: flex;
   align-items: center;

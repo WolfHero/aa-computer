@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   LOCAL_ROOMS_V2: 'aa_local_rooms_v2',
   LOCAL_BILLS_V2: 'aa_local_bills_v2',
   LOCAL_AA_V2: 'aa_local_aa_v2',
+  THEME: 'aa_theme',
 } as const
 
 export const PAGE_SIZE = 20

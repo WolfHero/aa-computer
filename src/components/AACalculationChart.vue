@@ -43,7 +43,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
+import 'echarts/theme/dark'
 import { formatCurrency } from '@/utils/format'
+import { useTheme } from '@/composables/useTheme'
 import type { AAResult, AAMemberResult, AATransfer } from '@/lib/types'
 
 const props = withDefaults(defineProps<{
@@ -58,6 +60,11 @@ const props = withDefaults(defineProps<{
 
 const chartRef = ref<HTMLDivElement>()
 let chartInstance: echarts.ECharts | null = null
+const { isDark } = useTheme()
+
+const chartTextColor = computed(() => (isDark.value ? '#abb2bf' : '#333'))
+const chartSecondaryColor = computed(() => (isDark.value ? '#8a919f' : '#969799'))
+const chartSliceBorder = computed(() => (isDark.value ? '#353b45' : '#fff'))
 
 const totalAmount = computed(() => {
   if (!props.result?.results?.members) return 0
@@ -93,7 +100,7 @@ function renderChart() {
   if (!chartRef.value || !props.result?.results?.members) return
 
   if (!chartInstance) {
-    chartInstance = echarts.init(chartRef.value)
+    chartInstance = echarts.init(chartRef.value, isDark.value ? 'dark' : undefined)
   }
 
   const my = myResult.value
@@ -102,24 +109,35 @@ function renderChart() {
   const net = Math.abs(my?.net ?? 0)
 
   chartInstance.setOption({
-    tooltip: { trigger: 'item' },
+    backgroundColor: 'transparent',
+    textStyle: { color: chartTextColor.value },
+    tooltip: isDark.value
+      ? {
+          trigger: 'item',
+          backgroundColor: '#3e4451',
+          borderColor: '#2c313a',
+          textStyle: { color: '#abb2bf' },
+        }
+      : { trigger: 'item' },
     series: [
       {
         type: 'pie',
         radius: ['55%', '72%'],
         avoidLabelOverlap: false,
-        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        itemStyle: { borderRadius: 6, borderColor: chartSliceBorder.value, borderWidth: 2 },
         label: {
           show: true,
           position: 'outside',
           fontSize: 13,
           fontWeight: 500,
+          color: chartTextColor.value,
           formatter: '{b}',
         },
         labelLine: {
           length: 10,
           length2: 14,
           smooth: true,
+          lineStyle: { color: chartSecondaryColor.value },
         },
         emphasis: {
           label: { show: true, fontSize: 16, fontWeight: 'bold' },
@@ -137,11 +155,13 @@ function renderChart() {
           fontSize: 12,
           position: 'outside',
           align: 'center',
+          color: chartTextColor.value,
         },
         labelLine: {
           length: 6,
           length2: 8,
           smooth: true,
+          lineStyle: { color: chartSecondaryColor.value },
         },
         data: (my?.net ?? 0) >= 0
           ? [
@@ -169,11 +189,17 @@ onUnmounted(() => {
 watch(() => [props.result, props.currentMemberId], () => {
   renderChart()
 }, { deep: true })
+
+watch(isDark, () => {
+  chartInstance?.dispose()
+  chartInstance = null
+  renderChart()
+})
 </script>
 
 <style scoped>
 .aa-chart-container {
-  background: #fff;
+  background: var(--color-surface-raised);
   padding: 16px;
 }
 .chart {
@@ -182,7 +208,7 @@ watch(() => [props.result, props.currentMemberId], () => {
 }
 .aa-summary {
   padding: 16px;
-  background: #fff;
+  background: var(--color-surface-raised);
   border-radius: 8px;
   margin: 0 0 16px;
 }

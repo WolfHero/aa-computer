@@ -112,12 +112,14 @@ import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
 import { useLocalRooms } from '@/composables/useLocalRooms'
 import { useLocalBackup } from '@/composables/useLocalBackup'
+import { useTheme } from '@/composables/useTheme'
 import { STORAGE_KEYS } from '@/utils/constants'
 import AppNavBar from '@/components/AppNavBar.vue'
 import RoomCreateDialog from '@/components/RoomCreateDialog.vue'
 import PrivacyDialog from '@/components/PrivacyDialog.vue'
 
 const router = useRouter()
+const { theme, toggleTheme } = useTheme()
 const { userId, getRefreshToken, refreshSession } = useAuth()
 const { rooms, loading, finished, fetchRooms } = useRooms()
 const { getAllRooms, getLegacyRoomIds, getLegacyRoomData } = useLocalRooms()
@@ -181,13 +183,18 @@ const showImportWarning = ref(false)
 const importToken = ref('')
 const importFileInput = ref<HTMLInputElement | null>(null)
 
-const settingsActions = [
+const settingsActions = computed(() => [
+  {
+    name: '深色模式',
+    subname: theme.value === 'dark' ? '已开启' : '已关闭',
+    key: 'theme',
+  },
   { name: '登录当前账号到其他设备', key: 'copyToken' },
   { name: '从其他设备登录账号', key: 'importToken' },
   { name: '导入本地房间', key: 'importRoom' },
   { name: '使用说明', key: 'usage' },
   { name: '隐私政策', key: 'privacy' },
-]
+])
 
 function findSupabaseAuthKey(): string | null {
   for (let i = 0; i < localStorage.length; i++) {
@@ -265,7 +272,9 @@ async function onImportConfirm() {
 }
 
 function onSettingsSelect(action: { key: string }) {
-  if (action.key === 'copyToken') {
+  if (action.key === 'theme') {
+    toggleTheme()
+  } else if (action.key === 'copyToken') {
     onCopyToken()
   } else if (action.key === 'importToken') {
     if (userId.value) {
@@ -301,7 +310,7 @@ async function onImportFile(e: Event) {
           title: '覆盖本地房间',
           message: `本机已存在同名本地房间「${parsed.room.name}」，是否覆盖？`,
           confirmButtonText: '覆盖',
-          confirmButtonColor: '#ee0a24',
+          confirmButtonColor: 'var(--color-danger)',
         })
       } catch {
         showToast('已取消导入')
@@ -376,20 +385,20 @@ onMounted(() => {
   border-radius: 4px;
 }
 .local-badge {
-  background: #fff7e6;
-  color: #fa8c16;
+  background: var(--color-tint-warning-bg);
+  color: var(--color-tint-warning-text);
 }
 .online-badge {
-  background: #e6f7ff;
-  color: #1989fa;
+  background: var(--color-tint-info-bg);
+  color: var(--color-tint-info-text);
 }
 .expired-badge {
-  background: #f0f0f0;
-  color: #999;
+  background: var(--color-tint-neutral-bg);
+  color: var(--color-tint-neutral-text);
 }
 .legacy-badge {
-  background: #fde8e8;
-  color: #ee0a24;
+  background: var(--color-tint-danger-bg);
+  color: var(--color-tint-danger-text);
 }
 .loading-state {
   text-align: center;

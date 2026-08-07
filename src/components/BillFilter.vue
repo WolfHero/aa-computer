@@ -160,7 +160,7 @@ function clearDateRange() {
 <style scoped>
 .bill-filter {
   padding: 8px 16px;
-  background: #fff;
+  background: var(--color-surface);
 }
 .filter-field {
   margin-bottom: 4px;

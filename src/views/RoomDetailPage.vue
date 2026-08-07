@@ -465,7 +465,7 @@ async function onDeleteBill() {
     await showConfirmDialog({
       title: '删除账单',
       message: `确定删除「${bill.content}」吗？`,
-      confirmButtonColor: '#ee0a24',
+      confirmButtonColor: 'var(--color-danger)',
     })
   } catch {
     return
@@ -538,7 +538,7 @@ async function onDeleteLocal() {
     await showConfirmDialog({
       title: '删除本地数据',
       message: '确定删除此房间的本地缓存和所有本地账单数据吗？此操作不可恢复。',
-      confirmButtonColor: '#ee0a24',
+      confirmButtonColor: 'var(--color-danger)',
     })
   } catch { return }
 
@@ -573,7 +573,7 @@ async function onRebuild() {
     await showConfirmDialog({
       title: '重建为本地房间',
       message: '将复制成员和账单生成一个新的本地房间，原过期房间条目将被移除。',
-      confirmButtonColor: '#ee0a24',
+      confirmButtonColor: 'var(--color-danger)',
     })
   } catch { return }
 
@@ -641,15 +641,15 @@ watch(() => route.params.id, () => {
 }
 .local-banner {
   padding: 12px 16px;
-  background: #e6f7ff;
-  color: #1989fa;
+  background: var(--color-tint-info-bg);
+  color: var(--color-tint-info-text);
   font-size: 13px;
   text-align: center;
 }
 .expired-banner {
   padding: 12px 16px;
-  background: #fff7e6;
-  color: #fa8c16;
+  background: var(--color-tint-warning-bg);
+  color: var(--color-tint-warning-text);
   font-size: 13px;
   text-align: center;
 }

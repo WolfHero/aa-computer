@@ -54,7 +54,7 @@ const actions = computed(() => {
       { name: '计算AA', key: 'aa' },
       sortAction,
       { name: '房间设置', key: 'settings' },
-      { name: '删除本地数据', key: 'delete-local', color: '#ee0a24' },
+      { name: '删除本地数据', key: 'delete-local', color: 'var(--color-danger)' },
     ]
   }
   if (props.mode === 'local') {
@@ -64,7 +64,7 @@ const actions = computed(() => {
       { name: '导入账单', key: 'import-bills' },
       { name: '导出本地房间', key: 'export' },
       { name: '房间设置', key: 'settings' },
-      { name: '删除本地数据', key: 'delete-local', color: '#ee0a24' },
+      { name: '删除本地数据', key: 'delete-local', color: 'var(--color-danger)' },
     ]
   }
   return [

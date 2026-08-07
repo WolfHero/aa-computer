@@ -3,6 +3,7 @@ import App from './App.vue'
 import router from './router'
 import { useAuth } from './composables/useAuth'
 import {
+  ConfigProvider,
   NavBar,
   Cell,
   CellGroup,
@@ -33,6 +34,7 @@ const app = createApp(App)
 
 app.use(router)
 
+app.use(ConfigProvider)
 app.use(NavBar)
 app.use(Cell)
 app.use(CellGroup)
@@ -61,3 +63,5 @@ const { initAuth } = useAuth()
 initAuth().then(() => {
   app.mount('#app')
 })
+
+

@@ -34,7 +34,10 @@
 
     <!-- Step 1: AG-Grid Preview + Mapping Form -->
     <div v-else-if="step === 1" class="import-content">
-      <div class="ag-grid-wrapper ag-theme-alpine">
+      <div
+        class="ag-grid-wrapper"
+        :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'"
+      >
         <AgGridVue
           v-if="parsedData.length > 0"
           :row-data="rowData"
@@ -234,7 +237,7 @@ import { showConfirmDialog, showToast } from 'vant'
 import { AgGridVue } from 'ag-grid-vue3'
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community'
 import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-alpine.css'
+import 'ag-grid-community/styles/ag-theme-quartz.css'
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import AppNavBar from '@/components/AppNavBar.vue'
@@ -245,6 +248,7 @@ import { useLocalBills } from '@/composables/useLocalBills'
 import { useLocalRooms } from '@/composables/useLocalRooms'
 import { useRemoteBills } from '@/composables/useRemoteBills'
 import { useAuth } from '@/composables/useAuth'
+import { useTheme } from '@/composables/useTheme'
 import type { ImportBillData, ColumnMapping, RoomMember } from '@/lib/types'
 
 dayjs.extend(customParseFormat)
@@ -252,6 +256,7 @@ ModuleRegistry.registerModules([AllCommunityModule])
 
 const route = useRoute()
 const router = useRouter()
+const { isDark } = useTheme()
 const roomId = computed(() => route.params.id as string)
 const { getRoomById } = useRooms()
 const { getRoom, getLegacyRoomData } = useLocalRooms()
@@ -890,7 +895,7 @@ async function onSelectAllSharers() {
     await showConfirmDialog({
       title: '全选分摊',
       message: '将为所有账单选择全部成员作为分摊人员，确定吗？',
-      confirmButtonColor: '#1989fa',
+      confirmButtonColor: 'var(--van-primary-color)',
     })
   } catch {
     return
@@ -908,7 +913,7 @@ async function onDeselectAllSharers() {
     await showConfirmDialog({
       title: '取消全选分摊',
       message: '将清空所有账单的分摊人员，确定吗？',
-      confirmButtonColor: '#ee0a24',
+      confirmButtonColor: 'var(--color-danger)',
     })
   } catch {
     return
@@ -1091,7 +1096,7 @@ initPage()
   padding: 48px 32px;
   border: 2px dashed var(--color-border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--color-surface);
 }
 .file-picker-card p {
   margin: 16px 0;
@@ -1122,7 +1127,7 @@ initPage()
 .import-form-area {
   max-height: 50%;
   overflow-y: auto;
-  background: #fff;
+  background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   flex-shrink: 0;
 }
@@ -1173,7 +1178,7 @@ initPage()
   font-size: 12px;
   font-weight: 600;
   color: var(--color-primary, #1989fa);
-  background: #e8f0fe;
+  background: var(--color-tint-info-soft-bg);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -1227,7 +1232,7 @@ initPage()
   right: 16px;
   bottom: 24px;
   z-index: 100;
-  background: var(--color-primary, #1989fa);
+  background: var(--van-primary-color, var(--color-primary, #1989fa));
   color: #fff;
   border: none;
   padding: 0 14px;
@@ -1239,30 +1244,47 @@ initPage()
 
 <style>
 /* AG-Grid overrides - global to avoid scoping issues */
-.ag-theme-alpine .ag-cell {
+/* One Dark 配色覆盖官方 quartz-dark，避免偏黑 */
+.ag-theme-quartz-dark {
+  --ag-background-color: #2c313a;
+  --ag-foreground-color: #abb2bf;
+  --ag-border-color: #3e4451;
+  --ag-secondary-border-color: rgba(171, 178, 191, 0.12);
+  --ag-header-background-color: #282c34;
+  --ag-input-border-color: #3e4451;
+  --ag-row-hover-color: rgba(97, 175, 239, 0.1);
+  --ag-selected-row-background-color: rgba(97, 175, 239, 0.18);
+  color-scheme: dark;
+}
+.ag-theme-quartz .ag-cell,
+.ag-theme-quartz-dark .ag-cell {
   line-height: 28px !important;
   padding: 0 6px !important;
   font-size: 12px !important;
   border-right: 1px solid var(--ag-border-color, #ddd) !important;
   border-bottom: 1px solid var(--ag-border-color, #ddd) !important;
 }
-.ag-theme-alpine .ag-row {
+.ag-theme-quartz .ag-row,
+.ag-theme-quartz-dark .ag-row {
   border: none !important;
 }
-.ag-theme-alpine .ag-header-cell {
+.ag-theme-quartz .ag-header-cell,
+.ag-theme-quartz-dark .ag-header-cell {
   font-size: 12px !important;
   font-weight: 600 !important;
   padding: 0 6px !important;
   border-right: 1px solid var(--ag-border-color, #ddd) !important;
 }
-.ag-theme-alpine .ag-header {
+.ag-theme-quartz .ag-header,
+.ag-theme-quartz-dark .ag-header {
   border-bottom: 2px solid var(--ag-border-color, #333) !important;
 }
-.ag-theme-alpine .ag-root-wrapper {
+.ag-theme-quartz .ag-root-wrapper,
+.ag-theme-quartz-dark .ag-root-wrapper {
   border: 1px solid var(--ag-border-color, #ddd) !important;
 }
 .cell-highlighted {
-  background-color: #fff3cd !important;
+  background-color: var(--color-tint-highlight-bg) !important;
   font-weight: 600 !important;
 }
 .row-number-cell {

@@ -362,7 +362,7 @@ async function onDeleteLocal() {
     await showConfirmDialog({
       title: '删除本地数据',
       message: '确定删除此房间的本地缓存和所有本地账单数据吗？此操作不可恢复。',
-      confirmButtonColor: '#ee0a24',
+      confirmButtonColor: 'var(--color-danger)',
     })
   } catch { return }
 
@@ -475,7 +475,7 @@ async function onRemoveMember(m: MemberInfo) {
     await showConfirmDialog({
       title: '删除成员',
       message: `确定将「${m.name}」移出房间吗？`,
-      confirmButtonColor: '#ee0a24',
+      confirmButtonColor: 'var(--color-danger)',
     })
   } catch { return }
 
@@ -518,15 +518,15 @@ async function onRemoveMember(m: MemberInfo) {
 }
 .local-banner {
   padding: 12px 16px;
-  background: #e6f7ff;
-  color: #1989fa;
+  background: var(--color-tint-info-bg);
+  color: var(--color-tint-info-text);
   font-size: 13px;
   text-align: center;
 }
 .expired-banner {
   padding: 12px 16px;
-  background: #fff7e6;
-  color: #fa8c16;
+  background: var(--color-tint-warning-bg);
+  color: var(--color-tint-warning-text);
   font-size: 13px;
   text-align: center;
 }
@@ -567,8 +567,8 @@ async function onRemoveMember(m: MemberInfo) {
   display: inline-block;
   padding: 0 4px;
   font-size: 10px;
-  color: #999;
-  border: 1px solid #999;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-text-secondary);
   border-radius: 2px;
 }
 .member-actions {
@@ -580,7 +580,7 @@ async function onRemoveMember(m: MemberInfo) {
   color: var(--color-text-secondary);
 }
 .action-icon.delete-icon {
-  color: #ee0a24;
+  color: var(--color-danger);
 }
 .add-member {
   color: #1989fa;
