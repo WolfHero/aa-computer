@@ -1,7 +1,25 @@
 {
   "mainBranch": "master",
-  "generatedAt": "2026-08-06",
+  "generatedAt": "2026-08-07",
   "entries": [
+    {
+      "id": "ccc4aad",
+      "type": "feature",
+      "title": "新增更新日志页面与 git 记录生成脚本",
+      "developer": "WolfHero",
+      "date": "2026-08-07",
+      "body": "- scripts/generate-release-log.mjs 从 git 记录生成静态 JSON：主分支过滤、合并日期归因、WIP 排除、四类更新分类\n- /changelog 更新列表与 /changelog/:id 详情两级页面，正文用 markdown-it 渲染\n- 更新提示弹窗新增「更新日志」入口，返回后重新弹出；注册后主动触发 SW 更新检查\n- 构建脚本集成日志生成，部署时自动产出最新数据",
+      "remark": ""
+    },
+    {
+      "id": "061ac92",
+      "type": "feature",
+      "title": "支持深色模式（One Dark 配色）",
+      "developer": "WolfHero",
+      "date": "2026-08-07",
+      "body": "- 新增 useTheme 组合式函数：首次访问跟随系统偏好，之后以用户选择为准并持久化\n- App 用 Vant ConfigProvider 包裹，AG-Grid 切换 quartz-dark，ECharts 深色重渲染\n- 扩展语义变量体系（surface / tint 等），状态徽章与横幅按主题适配\n- 首页设置菜单新增深色模式开关；meta theme-color 与首帧防闪白脚本",
+      "remark": ""
+    },
     {
       "id": "bae3220",
       "type": "dev",
