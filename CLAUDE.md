@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- `pnpm dev` — Start Vite dev server
-- `pnpm dev:container` — Start Vite dev server using `.env.container` (container-internal Supabase URL)
+- `pnpm dev` — Start Vite dev server（加载 `.env` + `.env.local`，Supabase URL 为宿主可达的 `http://localhost:54321`；**容器外浏览器访问请用这个**）
+- `pnpm dev:container` — Start Vite dev server using `.env.container`（容器内 Kong 地址 `http://supabase_kong_<project_id>:8000`，仅供容器内测试/浏览器，容器外无法解析该地址）
 - `pnpm build` — Generate changelog (`scripts/generate-release-log.mjs`) + Type-check with vue-tsc + Vite build
 - `pnpm preview` — Preview production build
 - `pnpm exec playwright test` — Run all E2E tests (needs dev server + Supabase running). Tests in `e2e/`: `aa-calculation.spec.ts`, `debug.spec.ts`, `import.spec.ts`, `lifecycle.spec.ts`, `local-mode.spec.ts`, `local-persistence.spec.ts`, `member-management.spec.ts`, `privacy.spec.ts`, `pwa.spec.ts`
@@ -16,6 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm exec playwright test e2e/pwa.spec.ts` — Run PWA tests (needs `pnpm build && pnpm preview --port 4173 --strictPort` running; skips automatically if preview is not up)
 - `node scripts/generate-release-log.mjs` — Regenerate `src/data/release-log.json` from git history (主分支过滤、合并日期归因、WIP 排除、四类更新分类)；`pnpm build` 会自动执行
 - Supabase: use `npx supabase` commands (local instance at `http://127.0.0.1:54321`)
+- 容器内验证 Supabase 连通：`curl http://supabase_kong_aa-computer:8000/rest/v1/`（返回 200/401 均表示可达；`.devcontainer/setup.sh` 会把容器接入宿主机 `supabase_network_<project_id>` 网络并生成 `.env.container`）
 - `npx supabase db reset` — Reset local DB and re-run all migrations
 - ESA 部署/部署状态检查：使用 **npm 全局安装**的 `esa-cli`（如 `esa-cli deployments list --skip-update-check`），不要用 `pnpm exec esa-cli`——项目内依赖在部分开发容器（9p 文件系统）上会因模块加载卡死
 
