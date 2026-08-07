@@ -16,6 +16,10 @@ RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g; s|security.debian.org|${APT_MIRROR
         git \
         curl \
         ca-certificates \
+        openssh-client \
+        python3 \
+        python3-pip \
+        python3-venv \
         procps \
         tzdata \
         sudo \

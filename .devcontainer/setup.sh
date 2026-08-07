@@ -29,6 +29,17 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   fi
 done
 
+# ---- 接入宿主机 Git SSH 凭据 (devcontainer.json 已挂载 ~/.ssh) ----
+if [ -d "$HOME/.ssh" ] && ls "$HOME/.ssh"/id_* >/dev/null 2>&1; then
+  chmod 700 "$HOME/.ssh"
+  chmod 600 "$HOME/.ssh"/id_* 2>/dev/null || true
+  chmod 644 "$HOME/.ssh"/*.pub 2>/dev/null || true
+  if ! grep -q '^github.com ' "$HOME/.ssh/known_hosts" 2>/dev/null; then
+    ssh-keyscan github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+  fi
+  echo ">>> Git SSH 凭据已就绪 (宿主机 ~/.ssh 挂载)"
+fi
+
 # ---- 接入宿主机 Supabase 的 Docker 网络 (需 devcontainer features: docker-outside-of-docker) ----
 # 跨平台 (Docker Desktop / WSL2 / Linux): 通过挂载的 docker.sock 操作宿主机 daemon,
 # 把当前容器 join 进 supabase_network_*, 之后容器内可按容器名直接访问各服务

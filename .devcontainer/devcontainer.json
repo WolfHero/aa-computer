@@ -16,6 +16,19 @@
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
   },
 
+  // 挂载宿主机 SSH 凭据 (~/.ssh), 使容器内 git push 直接可用 (需 Rebuild Container 生效)
+  // 私钥要求无口令, 或用 ssh-agent 转发; GitHub 主机指纹由 setup.sh 预写入 known_hosts
+  "mounts": [
+    {
+      "source": "${localEnv:USERPROFILE}/.ssh",
+      "target": "/home/node/.ssh",
+      "type": "bind"
+    }
+  ],
+  "remoteEnv": {
+    "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=accept-new"
+  },
+
   // Codex CLI 配置不与宿主机 Windows 同步（跨系统兼容性差），容器内独立使用
   // 注意: 登录态随容器重建丢失, 重建后需在容器内重新 codex login
 
