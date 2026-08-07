@@ -194,6 +194,7 @@ const settingsActions = computed(() => [
   { name: '导入本地房间', key: 'importRoom' },
   { name: '使用说明', key: 'usage' },
   { name: '隐私政策', key: 'privacy' },
+  { name: '更新日志', key: 'changelog' },
 ])
 
 function findSupabaseAuthKey(): string | null {
@@ -290,6 +291,8 @@ function onSettingsSelect(action: { key: string }) {
     showPrivacyDialog.value = true
   } else if (action.key === 'importRoom') {
     importFileInput.value?.click()
+  } else if (action.key === 'changelog') {
+    router.push('/changelog')
   }
   showActionSheet.value = false
 }

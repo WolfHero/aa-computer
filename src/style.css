@@ -16,6 +16,8 @@
   --color-tint-warning-text: #fa8c16;
   --color-tint-danger-bg: #fde8e8;
   --color-tint-danger-text: #ee0a24;
+  --color-tint-success-bg: #e8f8ee;
+  --color-tint-success-text: #07c160;
   --color-tint-neutral-bg: #f0f0f0;
   --color-tint-neutral-text: #999;
   --color-tint-highlight-bg: #fff3cd;
@@ -52,6 +54,8 @@
   --color-tint-warning-text: #d19a66;
   --color-tint-danger-bg: rgba(224, 108, 117, 0.14);
   --color-tint-danger-text: #e06c75;
+  --color-tint-success-bg: rgba(152, 197, 101, 0.14);
+  --color-tint-success-text: #98c565;
   --color-tint-neutral-bg: rgba(92, 99, 112, 0.2);
   --color-tint-neutral-text: #8a919f;
   --color-tint-highlight-bg: rgba(229, 192, 123, 0.16);
@@ -85,4 +89,30 @@ body,
 
 .page-content {
   padding: 16px;
+}
+
+/* 更新日志类型徽章 */
+.type-badge {
+  display: inline-block;
+  flex-shrink: 0;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+  border-radius: 4px;
+}
+.type-badge--feature {
+  background: var(--color-tint-info-bg);
+  color: var(--color-tint-info-text);
+}
+.type-badge--perf {
+  background: var(--color-tint-success-bg);
+  color: var(--color-tint-success-text);
+}
+.type-badge--fix {
+  background: var(--color-tint-danger-bg);
+  color: var(--color-tint-danger-text);
+}
+.type-badge--dev {
+  background: var(--color-tint-neutral-bg);
+  color: var(--color-tint-neutral-text);
 }

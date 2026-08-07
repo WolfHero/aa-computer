@@ -15,7 +15,7 @@
   "scripts": {
     "dev": "vite",
     "dev:container": "vite --mode container",
-    "build": "vue-tsc -b && vite build",
+    "build": "node scripts/generate-release-log.mjs && vue-tsc -b && vite build",
     "preview": "vite preview",
     "test": "playwright test",
     "test:container": "VITE_MODE=container playwright test",
@@ -28,6 +28,7 @@
     "ag-grid-vue3": "^35.3.1",
     "dayjs": "^1.11.20",
     "echarts": "^6.0.0",
+    "markdown-it": "^15.0.0",
     "papaparse": "^5.5.4",
     "vant": "^4.9.24",
     "vue": "^3.5.21",

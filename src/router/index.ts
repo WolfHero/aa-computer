@@ -38,6 +38,16 @@ const router = createRouter({
       name: 'room-import',
       component: () => import('@/views/ImportPage.vue'),
     },
+    {
+      path: '/changelog',
+      name: 'changelog',
+      component: () => import('@/views/ChangelogPage.vue'),
+    },
+    {
+      path: '/changelog/:id',
+      name: 'changelog-detail',
+      component: () => import('@/views/ChangelogDetailPage.vue'),
+    },
   ],
 })
 

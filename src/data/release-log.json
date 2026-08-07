@@ -1,0 +1,357 @@
+{
+  "mainBranch": "master",
+  "generatedAt": "2026-08-06",
+  "entries": [
+    {
+      "id": "bae3220",
+      "type": "dev",
+      "title": "更新路线图（本地AA/导出导入已完成，移除搁置的备份恢复项）",
+      "developer": "WolfHero",
+      "date": "2026-08-06",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "75afbc0",
+      "type": "dev",
+      "title": "devcontainer codex 别名修正，补充深色模式可行性调研文档",
+      "developer": "WolfHero",
+      "date": "2026-08-06",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "0b56671",
+      "type": "feature",
+      "title": "本地优先模式、创建人/付款人分离与导入增强",
+      "developer": "WolfHero",
+      "date": "2026-08-06",
+      "body": "- 本地房间默认创建，账单/成员/AA 全离线；邀请时经 convert_local_room RPC\n  原子转在线（幂等、单向、失败可重试）\n- 三态流转：本地 -> 在线 -> 过期只读，可从过期房间菜单重建为本地房间\n- 本地 AA 纯 TS 复刻 calculate_aa，含自付排除与分币取整，结果与服务端一致\n- 本地房间导出/导入 JSON（aa-local-room 格式），在线/过期房间不提供\n- 旧 v1 缓存迁移提示与只读降级；使用说明/隐私政策拆分并新增主页双入口\n- 账单 created_by/payer_id 分离：付款人仅创建人可改，可选自己或未绑定成员\n- 导入页快捷功能菜单（全选/取消全选/设置本批付款人）、列映射输入法修复、\n  导出文件名使用房间名、AA 转账明细展示全体成员\n- e2e 覆盖本地模式/转换/重建/导入/双用户/离线 PWA 等场景，共 34 条用例\n- 同步 README/ROADMAP/CLAUDE 与 supabase deploy.sql",
+      "remark": ""
+    },
+    {
+      "id": "cf80c61",
+      "type": "dev",
+      "title": "dev container 接入宿主机 Supabase 并支持 Playwright MCP 浏览器操作",
+      "developer": "WolfHero",
+      "date": "2026-08-05",
+      "body": "- devcontainer: docker-outside-of-docker 接入宿主机 Supabase Docker 网络,\n  Dockerfile 预装 Playwright 系统依赖\n- setup.sh: 自动接入网络、生成 .env.container、安装 Playwright Chromium、\n  添加 cdx 别名 (codex YOLO 模式)\n- env: 分离宿主机 (.env.local) 与容器内 (.env.container) 的 Supabase 地址,\n  新增 dev:container / test:container 脚本\n- e2e: playwright.config 按 mode 加载环境变量, 测试读取 VITE_SUPABASE_URL\n- codex: 项目级 MCP 配置注册 Playwright, Codex 可通过真实浏览器操作模拟\n- 删除 .mcp.json (Claude Code 遗留配置)",
+      "remark": ""
+    },
+    {
+      "id": "f9e48bc",
+      "type": "feature",
+      "title": "PWA 化支持离线访问与安装",
+      "developer": "WolfHero",
+      "date": "2026-08-04",
+      "body": "- 接入 vite-plugin-pwa：manifest、Service Worker（precache、navigateFallback、clientsClaim）\n- 新增 PWA 图标（pwa-64/192/512、maskable、apple-touch-icon）与 pwa-assets 生成配置\n- 新增 UpdatePrompt 更新提示：仅在新版本 ready 且本会话未拒绝时弹出\n- index.html 补充 theme-color 与 apple-mobile-web-app meta\n- 新增 e2e/pwa.spec.ts 离线访问测试，更新 README/ROADMAP/CLAUDE.md\n- pnpm-workspace 开启 dedupePeers，统一 vite@7.3.3 解析，修复 VSCode 中 Plugin 类型冲突",
+      "remark": ""
+    },
+    {
+      "id": "e57e749",
+      "type": "dev",
+      "title": "dev container配置",
+      "developer": "WolfHero",
+      "date": "2026-08-04",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "aee6aee",
+      "type": "dev",
+      "title": "记录 calculate_aa 函数优化清单",
+      "developer": "WolfHero",
+      "date": "2026-08-04",
+      "body": "新增 docs/calculate-aa-optimization.md：笛卡尔积修复背景、当前基线\n（EXPLAIN 数据）、可优化点与验证方式，供后续实施参考。",
+      "remark": ""
+    },
+    {
+      "id": "a226fdf",
+      "type": "fix",
+      "title": "修复 AA 计算因 bills 双重 join 笛卡尔积导致金额放大",
+      "developer": "WolfHero",
+      "date": "2026-08-04",
+      "body": "member_totals 同时 LEFT JOIN bills b（非自付）与 bills b_self（自付），\n两个 join 无关联条件，求和按对方行数成倍放大（如 51.9×18=934.2）。\n\n改为单次 join + FILTER 条件聚合，消除笛卡尔积；deploy.sql 同步更新。",
+      "remark": ""
+    },
+    {
+      "id": "98b0225",
+      "type": "fix",
+      "title": "关闭浏览器自动补全",
+      "developer": "WolfHero",
+      "date": "2026-07-06",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "97d12fe",
+      "type": "dev",
+      "title": "更新路线图",
+      "developer": "WolfHero",
+      "date": "2026-07-06",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "6620141",
+      "type": "dev",
+      "title": "更新CLAUDE.md",
+      "developer": "WolfHero",
+      "date": "2026-07-06",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "53bfd2f",
+      "type": "dev",
+      "title": "账单导入feature模板",
+      "developer": "WolfHero",
+      "date": "2026-07-06",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "5050510",
+      "type": "feature",
+      "title": "XLSX 导入使用文件原生列宽 (cellStyles + wpx)，后备自动计算",
+      "developer": "WolfHero",
+      "date": "2026-07-06",
+      "body": "添加 cellStyles: true 以解析 XLSX 列宽信息，优先使用 wpx（像素）\n直接设置 AG-Grid 列宽；文件无列宽时根据内容长度自动计算。",
+      "remark": ""
+    },
+    {
+      "id": "38fac62",
+      "type": "feature",
+      "title": "筛选条件改为可视化条件构建器，列映射简化（仅时间位置需行号）",
+      "developer": "WolfHero",
+      "date": "2026-07-06",
+      "body": "- 筛选条件从文本语法（如 E26!=支出）改为可视化条件行：列选择器 + 比较符 + 值\n- 新增 AND/OR 连接符切换、条件增删\n- 列映射：时间位置保留列号+行号，内容位置/金额位置仅需列号\n- 比较符使用中文标签（大于等于/小于等于/等于/不等于）\n- 金额列数值检测增加货币符号过滤（¥$€£￥）\n- 删除 ColumnMapping.filter 字段",
+      "remark": ""
+    },
+    {
+      "id": "1190196",
+      "type": "feature",
+      "title": "实现账单导入功能 (xlsx/csv 解析 → AG-Grid 预览 → 列映射 → 卡片编辑 → 保存)",
+      "developer": "WolfHero",
+      "date": "2026-07-06",
+      "body": "使用 SheetJS + PapaParse 解析文件，AG-Grid 预览原始数据，支持列映射、筛选、\n多步导入流程。新增 ImportPage、ImportBillCard 可编辑卡片、importParser 工具模块。",
+      "remark": ""
+    },
+    {
+      "id": "1706ec0",
+      "type": "feature",
+      "title": "实现AA计算结果本地缓存，支持过期房间查看AA页面",
+      "developer": "WolfHero",
+      "date": "2026-05-29",
+      "body": "- localStorage 三层缓存：内存 → aa_results 表 → RPC，减少网络请求\n- 过期房间从本地缓存加载AA结果和账单列表（伪分页）\n- 本地房间菜单增加\"计算AA\"入口\n- 当本地AA结果版本落后于房间版本时显示警告\n- 添加 delete_room 安全函数处理删除顺序\n- 添加完整 E2E 测试覆盖 AA 缓存、刷新、重新计算、过期房间场景",
+      "remark": ""
+    },
+    {
+      "id": "0c415df",
+      "type": "fix",
+      "title": "修复 calculate_aa 函数中 CTE 作用域问题引起的运行时错误",
+      "developer": "WolfHero",
+      "date": "2026-05-29",
+      "body": "迁移 20250517000001 中 calculate_aa 使用了 net_positions CTE，\n但该 CTE 在第一个 WITH 查询结束后已超出作用域，第二个 WITH 块中\n引用时会导致 \"relation \"net_positions\" does not exist\" 错误。\n改为使用数组变量 v_net_positive/v_net_negative + jsonb_array_elements\n的 PL/pgSQL 方式，保留 set search_path = 'public' 安全修复。",
+      "remark": ""
+    },
+    {
+      "id": "cbdec2c",
+      "type": "feature",
+      "title": "提取PrivacyDialog可复用组件，添加账单成员删除保护，修复类型错误和导航流程",
+      "developer": "WolfHero",
+      "date": "2026-05-28",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "b573ae5",
+      "type": "dev",
+      "title": "添加ROADMAP.md",
+      "developer": "WolfHero",
+      "date": "2026-05-27",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "a3da8d5",
+      "type": "feature",
+      "title": "实现本地房间持久化：首页合并本地+远端房间列表，过期房间只读模式，本地缓存优先不请求",
+      "developer": "WolfHero",
+      "date": "2026-05-27",
+      "body": "- 首页房间列表合并本地缓存与后端返回结果，本地房间显示「本地」标记\n- 新增 useLocalRooms composable：本地房间缓存、过期标记持久化\n- 新增 toast.ts 包装函数，所有 toast 输出 [Toast] 日志方便调试\n- RoomDetailPage：无登录/房间过期时走本地缓存，避免后端请求\n- RoomSettingsPage：过期间显示只读提示，可删除本地数据\n- AACalculationPage：过期房间跳过重新计算\n- ActionSheet：local-only 模式显示「删除本地数据」入口\n- 删除本地数据时清理房间缓存、账单缓存、版本号缓存、过期标记\n- 将所有 showToast 导入迁移至 @/utils/toast",
+      "remark": ""
+    },
+    {
+      "id": "4ed0dd2",
+      "type": "dev",
+      "title": "添加 playwright-report/ 和 test-results/",
+      "developer": "WolfHero",
+      "date": "2026-05-27",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "1383bd3",
+      "type": "feature",
+      "title": "实现房主管理功能和完整 E2E 测试覆盖",
+      "developer": "WolfHero",
+      "date": "2026-05-27",
+      "body": "新增房间 owner_id 字段，支持房主添加占位成员、生成专属邀请链接、\n编辑成员昵称、删除成员。数据库 migration 含 RLS 策略更新和\nsecurity definer 辅助函数。前端 RoomSettingsPage 重写，新增\nInviteMemberPage 专属邀请页和对应路由。\n\n同步修复：localStorage 空数组持久化、InvitePage 数组真值检查、\nVant 4 before-close 兼容、按钮文字更新等。\n\n新增 13 个 Playwright E2E 测试覆盖全部成员管理流程。",
+      "remark": ""
+    },
+    {
+      "id": "d38c10a",
+      "type": "dev",
+      "title": "README: 补充 npx supabase 说明和国内用户提示",
+      "developer": "WolfHero",
+      "date": "2026-05-22",
+      "body": "自部署指南中补充：Supabase CLI 失败时可尝试 npx supabase；Supabase 云服务标注国内不推荐；本地方案说明也可用于服务器部署；修正迁移命令为 supabase db reset。",
+      "remark": ""
+    },
+    {
+      "id": "fb88fbe",
+      "type": "dev",
+      "title": "README: 添加完整的自部署指南（Supabase 云服务 + 本地开发）",
+      "developer": "WolfHero",
+      "date": "2026-05-21",
+      "body": "包含 Supabase 云部署方案（SQL Editor 初始化、匿名登录配置、Vercel 部署示例）和本地开发方案（Supabase CLI + Docker），以及定时清理过期房间的建议。English version updated in sync.",
+      "remark": ""
+    },
+    {
+      "id": "e9db385",
+      "type": "fix",
+      "title": "修复 Supabase Security Advisor 告警：为所有 security definer 函数设置 search_path，优化 RLS 策略中 auth.uid() 的调用方式",
+      "developer": "WolfHero",
+      "date": "2026-05-17",
+      "body": "- 为 is_member_of_room / calculate_aa / cleanup_expired_rooms / get_room_info / update_bill / delete_bill / cleanup_orphan_anonymous_users 共 7 个 security definer 函数添加 set search_path\n- 将 room_members 表的 4 条 RLS 策略中的 auth.uid() 改为 (select auth.uid()::text) 标量子查询，避免每行重复计算",
+      "remark": ""
+    },
+    {
+      "id": "a23d520",
+      "type": "fix",
+      "title": "修复导航栏右侧按钮点击时视觉效果波及所有按钮的问题",
+      "developer": "WolfHero",
+      "date": "2026-05-16",
+      "body": "原因：Vant 在 van-nav-bar__right 容器上应用了 van-haptics-feedback 类，\n点击时 .van-haptics-feedback:active 使整个容器的 opacity 降为 0.6，\n导致所有按钮同时变淡。\n\n修复方案：\n- 用 :deep() 覆盖容器级别的 :active 样式，阻止 opacity 变化\n- 改用 JS 管理每个按钮独立的 activeBtn 状态，配合 class 控制按下效果\n- 添加 -webkit-tap-highlight-color: transparent 禁用浏览器默认高亮",
+      "remark": ""
+    },
+    {
+      "id": "0e9afe5",
+      "type": "feature",
+      "title": "AA计算页在\"你支付的金额\"下方新增\"你应承担的金额\"展示行，由前端直接计算（你支付的金额 - net差额）",
+      "developer": "WolfHero",
+      "date": "2026-05-16",
+      "body": "邀请页新增隐私协议弹窗（首次打开时展示，与首页行为一致）\n邀请页加载后先检查本地账单中是否已包含该房间，有则直接跳转至账单页\n\n创建房间表单禁用浏览器自动补全",
+      "remark": ""
+    },
+    {
+      "id": "eb5eab6",
+      "type": "fix",
+      "title": "修复BillForm金额输入框不支持小数输入的问题",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "a66b220",
+      "type": "dev",
+      "title": "修复 vue-tsc 类型错误",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "- BillFilter: null 值改为空字符串以兼容 Vant PickerOption 类型\n- RoomCreateDialog/InvitePage: 移除 Vant FieldRule 不支持的 max 规则\n- useRooms: 移除未使用的 Room 导入\n- AACalculationPage/RoomDetailPage: myMember 类型从 RoomMember 改为 MemberInfo 以匹配 RoomWithMembers.members 结构",
+      "remark": ""
+    },
+    {
+      "id": "a318acf",
+      "type": "feature",
+      "title": "延迟匿名注册至创建/加入房间时 + 跨设备登录功能 + 页面过渡动画",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "- 改为点击新建/加入房间时才触发匿名注册，首页不再自动注册\n- 新增跨设备登录：复制 refresh_token 到其他设备 / 从其他设备导入\n- 导入时若用户 ID 变化则清空本地数据并刷新页面\n- 首次访问自动弹出隐私政策弹窗\n- AppNavBar 支持 backTo 属性，账单页返回键跳转到首页\n- App.vue 添加 van-fade 页面过渡动画\n- 图标由 vite.svg 更换为 icon.png",
+      "remark": ""
+    },
+    {
+      "id": "9ebd626",
+      "type": "fix",
+      "title": "禁用表单输入框的浏览器自动补全",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "835e342",
+      "type": "fix",
+      "title": "添加表单/数据库字段长度限制 + 修复表单校验",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "- BillForm: sharedBy 添加必填校验，onSubmit 中调用 validate()\n- BillForm: 付款内容限制40单位（半角0.5/全角1），金额限制10位整数+2位小数\n- BillForm: 继续新增时清空金额字段\n- RoomCreateDialog/InvitePage: 房间名/用户名限制20字符\n- DB迁移: rooms.name/room_members.name/personal varchar(20), bills.content/personal varchar(80), bills.creator_name/personal varchar(20)\n- useLocalBills: updateBill 添加 as Bill 类型断言",
+      "remark": ""
+    },
+    {
+      "id": "6731c18",
+      "type": "dev",
+      "title": "添加 cleanup_orphan_anonymous_users 清理函数 + 更新 deploy.sql",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "36ab29b",
+      "type": "fix",
+      "title": "修复未登录时仍发起 room_members 查询的问题",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "2717629",
+      "type": "dev",
+      "title": "修改ESA部署配置",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "01fab72",
+      "type": "fix",
+      "title": "修复CORS残留token + 房间名闪烁 + 未登录查询",
+      "developer": "WolfHero",
+      "date": "2026-05-15",
+      "body": "- initAuth.getSession 失败时自动清理残留的 sb-*-auth-token\n- 房间名通过 history.state 传入，避免异步加载闪烁\n- fetchRooms 未登录时跳过查询",
+      "remark": ""
+    },
+    {
+      "id": "bc22096",
+      "type": "feature",
+      "title": "账单编辑/删除功能 + 数据加载逻辑修复",
+      "developer": "WolfHero",
+      "date": "2026-05-14",
+      "body": "- 账单卡片支持点击编辑和删除，编辑模式显示红色删除按钮\n- 账单修改/删除与房间版本号递增在同一个 DB 事务中\n- 新增 get_room_info / update_bill / delete_bill 安全 definer 函数\n- 修复数据加载流程：版本号在 fetch 成功后保存，syncBillsFromServer 替换缓存\n- 修复 van-list 在 pull-refresh 期间误触发 @load 导致列表重复\n- 邀请页展示房间名称和创建人，隐藏返回按钮\n- 新增账单支持继续新增模式，编辑模式隐藏继续新增\n- 付款时间拆分为日期选择器 + 时间选择器，使用 dayjs 处理时区\n- 右上角设置改为菜单，新增复制邀请链接\n- 页面标题 AA Computer → AA计算器\n- 关键 catch 块添加 console.error",
+      "remark": ""
+    },
+    {
+      "id": "0ae747f",
+      "type": "dev",
+      "title": "补全项目基础信息 此后作者提交的用户名改成WolfHero（邮箱地址不变）",
+      "developer": "WolfHero",
+      "date": "2026-05-12",
+      "body": "",
+      "remark": ""
+    },
+    {
+      "id": "6f439b1",
+      "type": "feature",
+      "title": "项目初始化",
+      "developer": "tianyurun",
+      "date": "2026-05-11",
+      "body": "",
+      "remark": ""
+    }
+  ]
+}
