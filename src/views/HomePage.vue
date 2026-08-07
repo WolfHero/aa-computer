@@ -57,7 +57,7 @@
     <van-action-sheet
       v-model:show="showActionSheet"
       :actions="settingsActions"
-      :title="`AA计算器 v${appVersion}`"
+      :title="`AA计算器 v${APP_VERSION}`"
       cancel-text="取消"
       close-on-click-action
       @select="onSettingsSelect"
@@ -114,12 +114,12 @@ import { useLocalRooms } from '@/composables/useLocalRooms'
 import { useLocalBackup } from '@/composables/useLocalBackup'
 import { useTheme } from '@/composables/useTheme'
 import { STORAGE_KEYS } from '@/utils/constants'
+import { APP_VERSION } from '@/version'
 import AppNavBar from '@/components/AppNavBar.vue'
 import RoomCreateDialog from '@/components/RoomCreateDialog.vue'
 import PrivacyDialog from '@/components/PrivacyDialog.vue'
 
 const router = useRouter()
-const appVersion = __APP_VERSION__
 const { theme, toggleTheme } = useTheme()
 const { userId, getRefreshToken, refreshSession } = useAuth()
 const { rooms, loading, finished, fetchRooms } = useRooms()

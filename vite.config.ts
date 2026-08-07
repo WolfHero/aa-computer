@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
@@ -9,10 +9,26 @@ const pkg = JSON.parse(
   readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8')
 ) as { version: string }
 
+// 虚拟模块注入版本号：dev 与 build 均生效（Vite define 在 dev 客户端不生效）
+const versionPlugin = (version: string): Plugin => ({
+  name: 'app-version',
+  resolveId(id) {
+    if (id === 'virtual:app-version') return '\0virtual:app-version'
+    return undefined
+  },
+  load(id) {
+    if (id === '\0virtual:app-version') {
+      return `export const APP_VERSION = ${JSON.stringify(version)}\n`
+    }
+    return undefined
+  },
+})
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
+    versionPlugin(pkg.version),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['icon.png', 'favicon.ico', 'apple-touch-icon-180x180.png'],
@@ -62,9 +78,6 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
-  },
-  define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
   },
   server: {
     host: true,
