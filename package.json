@@ -42,6 +42,7 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
     "commit-and-tag-version": "^13.1.2",
+    "dotenv": "^17.4.2",
     "esa-cli": "^1.0.10",
     "supabase": "^2.98.2",
     "typescript": "~5.8.3",

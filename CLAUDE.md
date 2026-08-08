@@ -140,3 +140,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `van-list` fires `@load` on mount unless `immediate-check="false"`, causing duplicate requests
 - Local Supabase anonymous user data is stored in Docker container; lost on container restart
 - 开发容器中 `pnpm exec esa-cli` 可能因 9p 文件系统问题在模块加载时卡死；用 npm 全局安装的 esa-cli
+
+### 识图能力（vision）
+
+底层模型不具备原生识图能力。遇到图片时，**不要用内置图片预览/Read 工具**，改用 vision.cjs：
+
+```
+node vision.cjs "<图片路径>" "用中文描述这张图片"
+node vision.cjs --url "<图片链接>" "用中文描述这张图片"
+```
+
+#### 触发场景
+
+- 用户分享图片路径（本地或网络 URL）
+- 消息中出现 "Saved attachments:" 并列出图片
+- 用户要求分析、描述、识别图片内容
+
+#### 配置
+
+- 密钥写在项目根目录 `.env`（已 gitignore）：`DASHSCOPE_API_KEY`、`VISION_MODEL`，非千问服务时再加 `DASHSCOPE_BASE_URL`
+- 依赖 dotenv（已加入 devDependencies）
+- 注意：项目为 ESM（`"type": "module"`），脚本以 `.cjs` 后缀保留 CommonJS 写法，调用命令与上游 README 的 `vision.js` 不同
