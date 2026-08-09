@@ -107,6 +107,7 @@ import { useLocalBackup } from '@/composables/useLocalBackup'
 import { useRoomLifecycle } from '@/composables/useRoomLifecycle'
 import { useRemoteBills } from '@/composables/useRemoteBills'
 import { useAuth } from '@/composables/useAuth'
+import { useNetwork } from '@/composables/useNetwork'
 import AppNavBar from '@/components/AppNavBar.vue'
 import BillCard from '@/components/BillCard.vue'
 import BillForm from '@/components/BillForm.vue'
@@ -198,7 +199,7 @@ function isNetworkError(e: unknown): boolean {
   // { message: "TypeError: Failed to fetch", details: <stack> }，instanceof 判断不到，按消息识别
   if (e && typeof e === 'object') {
     const message = String((e as { message?: unknown }).message ?? '')
-    return /failed to fetch|network error|load failed|fetch failed|ERR_INTERNET/i.test(message)
+    return /failed to fetch|network error|load failed|fetch failed|ERR_INTERNET|abort|offline/i.test(message)
   }
   return false
 }
@@ -292,6 +293,8 @@ const mergedBills = computed(() => {
 })
 
 async function loadOnlineRoom(cached: LocalRoom | null) {
+  // 等待初始网络探测：离线模式下请求会立即失败并回退本地缓存，而不是重试等待
+  await useNetwork().ensureNetworkChecked()
   billLoading.value = true
   try {
     const remote = await getRoomById(roomId.value)
@@ -340,6 +343,7 @@ async function applyRemoteRoom(remote: RoomWithMembers, force = false) {
 
 /** 已过期房间打开时先尝试从服务器恢复：房间仍存在则恢复在线，否则保持过期只读 */
 async function tryRecoverExpiredRoom(): Promise<boolean> {
+  await useNetwork().ensureNetworkChecked()
   billLoading.value = true
   try {
     const remote = await getRoomById(roomId.value)

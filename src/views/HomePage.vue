@@ -9,6 +9,10 @@
       ]"
     />
 
+    <div v-if="isOffline" class="offline-banner">
+      <van-icon name="info-o" /> 网络不可用，网络就绪后请刷新页面
+    </div>
+
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
       <van-list
         v-model:loading="listLoading"
@@ -166,9 +170,11 @@ import PrivacyDialog from '@/components/PrivacyDialog.vue'
 import CopyLinkDialog from '@/components/CopyLinkDialog.vue'
 import InAppHintDialog from '@/components/InAppHintDialog.vue'
 import { detectAppHintType } from '@/utils/device'
+import { useNetwork } from '@/composables/useNetwork'
 
 const router = useRouter()
 const { mode, cycleThemeMode } = useTheme()
+const { isOffline, checkNetworkFast } = useNetwork()
 const { userId, getRefreshToken, refreshSession } = useAuth()
 const { rooms, loading, finished, fetchRooms } = useRooms()
 const { getAllRooms, getLegacyRoomIds, getLegacyRoomData } = useLocalRooms()
@@ -442,6 +448,13 @@ async function onLoad() {
 }
 
 async function onRefresh() {
+  // 下拉刷新时重新探测网络：恢复后自动退出离线模式
+  await checkNetworkFast()
+  if (isOffline.value) {
+    showToast('网络不可用，请稍后重试')
+    refreshing.value = false
+    return
+  }
   refreshing.value = true
   listLoading.value = true
   try {
@@ -500,6 +513,13 @@ watch(showPrivacyDialog, (v) => {
   background: var(--color-bg);
   display: flex;
   flex-direction: column;
+}
+.offline-banner {
+  padding: 12px 16px;
+  background: var(--color-tint-info-bg);
+  color: var(--color-tint-info-text);
+  font-size: 13px;
+  text-align: center;
 }
 /* 列表容器至少占满导航栏下方的剩余视口高度，避免房间少时下拉刷新区域过小 */
 .home-page :deep(.van-pull-refresh) {

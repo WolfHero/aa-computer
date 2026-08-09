@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useAuth } from './useAuth'
 import { useLocalBills } from './useLocalBills'
 import { useLocalRooms } from './useLocalRooms'
+import { useNetwork } from './useNetwork'
 import { ROOM_PAGE_SIZE } from '@/utils/constants'
 import type { RoomMember, RoomWithMembers } from '@/lib/types'
 
@@ -16,6 +17,8 @@ export function useRooms() {
   let cachedUserRoomIds: string[] | null = null
 
   async function fetchRooms(refresh = false) {
+    // 等待初始网络探测完成，离线模式下后续请求会快速失败而不是重试等待
+    await useNetwork().ensureNetworkChecked()
     if (!userId.value) {
       finished.value = true
       return
