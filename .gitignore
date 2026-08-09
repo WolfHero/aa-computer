@@ -55,3 +55,7 @@ coverage/
 .agents/
 playwright-report/
 test-results/
+
+# 宣发资料（宣传图、推文、PPT、截图素材）
+promo/
+screenshots/

@@ -21,7 +21,10 @@ description: 发布 aa-computer 新版本（SemVer）。当用户要求发版/�
    - `git rev-parse vX.Y.Z` 记录本地 sha
    - `curl -s https://api.github.com/repos/WolfHero/aa-computer/tags` 确认远端 tag 存在且 sha 一致
    - master 用 `curl -s https://api.github.com/repos/WolfHero/aa-computer/branches/master` 核对
-5. 部署前如需应用内更新日志：运行 `pnpm build` 重新生成 `src/data/release-log.json` 并提交（ESA 部署走 esa-cli，见 CLAUDE.md，独立流程）。
+5. **发版后不要重新生成并提交 `src/data/release-log.json`**：
+   - 仓库中已提交的 release-log.json 只作为 fallback 展示（git 不可用/浅克隆时页面用它兜底）。
+   - 实际部署（ESA 执行 `pnpm build`）时会从 git 记录自动生成完整日志，发版流程不需要、也不应该再单独生成一次并追加提交。
+   - 若本地 `pnpm build` 重写了 release-log.json，忽略该改动，不要把它打包进发布提交或单独提交。
 
 ## 项目特定注意事项
 
@@ -30,3 +33,4 @@ description: 发布 aa-computer 新版本（SemVer）。当用户要求发版/�
 - 版本号注入走虚拟模块（`src/version.ts` → `virtual:app-version`），不要改回 Vite `define`：define 在 dev 客户端不生效。
 - 9p 挂载下 Vite 文件监听可能失效：改代码后重启 dev server 再验证。
 - 基线 v1.0.0 已存在；重复发布同一版本需先删本地/远端 tag（慎用）。
+- release-log.json 的 fallback 语义：仓库内版本保持现状不动，完整版本始终由部署时的 `pnpm build` 生成。

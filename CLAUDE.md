@@ -14,7 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm test:container` — Run E2E tests with container env (`.env.container`), for tests inside the dev container
 - `pnpm exec playwright test --grep "test-name-pattern"` — Run specific E2E tests
 - `pnpm exec playwright test e2e/pwa.spec.ts` — Run PWA tests (needs `pnpm build && pnpm preview --port 4173 --strictPort` running; skips automatically if preview is not up)
-- `node scripts/generate-release-log.mjs` — Regenerate `src/data/release-log.json` from git history (主分支过滤、合并日期归因、WIP 排除、四类更新分类)；`pnpm build` 会自动执行
+- `node scripts/generate-release-log.mjs` — Regenerate `src/data/release-log.json` from git history (主分支过滤、合并日期归因、WIP 排除、四类更新分类)；`pnpm build` 会自动执行。仓库中已提交的 JSON 仅作 fallback（git 不可用/浅克隆时保留旧数据兜底），实际部署时 `pnpm build` 会从 git 记录重新生成完整版本
+- 发版流程见 `.codex/skills/release-version/SKILL.md`；**发版后不要重新生成 release-log.json 再提交一次**——仓库内的版本保持现状作 fallback，完整日志由实际部署（ESA 执行 `pnpm build`）自动生成
 - Supabase: use `npx supabase` commands (local instance at `http://127.0.0.1:54321`)
 - 容器内验证 Supabase 连通：`curl http://supabase_kong_aa-computer:8000/rest/v1/`（返回 200/401 均表示可达；`.devcontainer/setup.sh` 会把容器接入宿主机 `supabase_network_<project_id>` 网络并生成 `.env.container`）
 - `npx supabase db reset` — Reset local DB and re-run all migrations
@@ -38,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `papaparse` (CSV parsing), `xlsx` (SheetJS, XLSX parsing)
 - `dayjs` (date parsing in ImportPage with custom format plugin)
 - `markdown-it` (更新日志正文渲染，`html: false` + linkify)
-- `scripts/generate-release-log.mjs` — 从 git 记录生成 `src/data/release-log.json`，随 `pnpm build` 自动执行；ESA 部署时自动产出最新日志
+- `scripts/generate-release-log.mjs` — 从 git 记录生成 `src/data/release-log.json`，随 `pnpm build` 自动执行；ESA 部署时自动产出最新日志。仓库内已提交版本仅作 fallback 展示，不要手动改动或为重新生成单独提交
 - `src/utils/` — `constants.ts` (storage keys, page sizes), `format.ts` (currency, date), `toast.ts` (Vant toast wrapper), `importParser.ts` (XLSX/CSV → `ParsedSheet[]`)
 
 ### Routes (src/router/index.ts)
