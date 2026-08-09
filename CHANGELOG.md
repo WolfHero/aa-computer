@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.1.2](https://github.com/WolfHero/aa-computer/compare/v1.1.1...v1.1.2) (2026-08-09)
+
+### Bug Fixes
+
+* 增加打开页面时的网络检测与离线模式，离线后请求快速失败 ([58400e6](https://github.com/WolfHero/aa-computer/commit/58400e6b98f0d07ca2a78a3fc0f3ff8fe09c98e6))
 ## [1.1.1](https://github.com/WolfHero/aa-computer/compare/v1.1.0...v1.1.1) (2026-08-09)
 
 ### Bug Fixes
