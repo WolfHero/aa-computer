@@ -119,6 +119,7 @@ import type {
   LocalRoom,
   RoomMember,
   RoomMode,
+  RoomWithMembers,
   SortMode,
 } from '@/lib/types'
 
@@ -129,7 +130,7 @@ const routeRoomName = (history.state as Record<string, unknown> | null)?.roomNam
 const { getRoomById } = useRooms()
 const { getBills, getUnsyncedBills, syncBillsFromServer, mergeFetchedBills, deleteBill } = useLocalBills()
 const { submitBills, markForNextBill, checkUnsubmittedMembers, fetchBills } = useRemoteBills()
-const { getRoom, saveRoom, getLegacyRoomData, markExpired } = useLocalRooms()
+const { getRoom, saveRoom, getLegacyRoomData, markExpired, clearExpired } = useLocalRooms()
 const { removeRoomData, rebuildFromExpired, migrateLegacyRoom } = useRoomLifecycle()
 const { downloadLocalRoom } = useLocalBackup()
 const { userId } = useAuth()
@@ -191,8 +192,15 @@ function saveRoomVersion(v: number) {
 const lastBillsVersion = ref(loadRoomVersion())
 
 function isNetworkError(e: unknown): boolean {
-  return e instanceof TypeError
-    || (e instanceof Error && /failed to fetch|network|load failed/i.test(e.message))
+  if (e instanceof TypeError) return true
+  if (e instanceof Error && /failed to fetch|network|load failed/i.test(e.message)) return true
+  // postgrest-js 在非 throwOnError 模式下把网络错误包装成普通对象：
+  // { message: "TypeError: Failed to fetch", details: <stack> }，instanceof 判断不到，按消息识别
+  if (e && typeof e === 'object') {
+    const message = String((e as { message?: unknown }).message ?? '')
+    return /failed to fetch|network error|load failed|fetch failed|ERR_INTERNET/i.test(message)
+  }
+  return false
 }
 
 function applyLocalRoom(v2: LocalRoom) {
@@ -287,19 +295,7 @@ async function loadOnlineRoom(cached: LocalRoom | null) {
   billLoading.value = true
   try {
     const remote = await getRoomById(roomId.value)
-    offlineView.value = false
-    roomMode.value = 'online'
-    room.value = { ...remote, mode: 'online', self_member_id: null }
-    members.value = remote.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id }))
-    myMember.value = remote.members.find(m => m.user_id === userId.value) ?? null
-    saveRoom({ ...remote, mode: 'online', self_member_id: null })
-    if (remote.version !== lastBillsVersion.value) {
-      await loadRemoteBills(true)
-      lastBillsVersion.value = remote.version
-      saveRoomVersion(remote.version)
-    } else {
-      loadSyncedBillsFromLocal()
-    }
+    await applyRemoteRoom(remote)
   } catch (e: unknown) {
     if (isNetworkError(e) && cached) {
       offlineView.value = true
@@ -325,10 +321,46 @@ async function loadOnlineRoom(cached: LocalRoom | null) {
   }
 }
 
+/** 应用服务器返回的在线房间数据并刷新账单；force 用于覆盖本地过期缓存（恢复场景） */
+async function applyRemoteRoom(remote: RoomWithMembers, force = false) {
+  offlineView.value = false
+  roomMode.value = 'online'
+  room.value = { ...remote, mode: 'online', self_member_id: null }
+  members.value = remote.members.map(m => ({ id: m.id, name: m.name, user_id: m.user_id }))
+  myMember.value = remote.members.find(m => m.user_id === userId.value) ?? null
+  saveRoom({ ...remote, mode: 'online', self_member_id: null }, force)
+  if (remote.version !== lastBillsVersion.value) {
+    await loadRemoteBills(true)
+    lastBillsVersion.value = remote.version
+    saveRoomVersion(remote.version)
+  } else {
+    loadSyncedBillsFromLocal()
+  }
+}
+
+/** 已过期房间打开时先尝试从服务器恢复：房间仍存在则恢复在线，否则保持过期只读 */
+async function tryRecoverExpiredRoom(): Promise<boolean> {
+  billLoading.value = true
+  try {
+    const remote = await getRoomById(roomId.value)
+    await applyRemoteRoom(remote, true)
+    clearExpired(roomId.value)
+    showToast('房间已恢复在线')
+    return true
+  } catch {
+    return false
+  } finally {
+    billLoading.value = false
+  }
+}
+
 async function loadView() {
   lastBillsVersion.value = loadRoomVersion()
   const v2 = getRoom(roomId.value)
   if (v2 && v2.mode !== 'online') {
+    if (v2.mode === 'expired' && await tryRecoverExpiredRoom()) {
+      return
+    }
     applyLocalRoom(v2)
     return
   }

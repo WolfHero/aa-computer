@@ -122,9 +122,9 @@ export function useLocalRooms() {
     return room
   }
 
-  function saveRoom(room: LocalRoom) {
+  function saveRoom(room: LocalRoom, force = false) {
     const existing = store[room.id]
-    if (existing && existing.updated_at >= room.updated_at) return
+    if (!force && existing && existing.updated_at >= room.updated_at) return
     store[room.id] = { ...room, members: room.members.map(m => ({ ...m })) }
     persist()
   }
@@ -182,6 +182,16 @@ export function useLocalRooms() {
       localStorage.setItem(EXPIRED_ROOMS_KEY, JSON.stringify([...expired]))
     } catch { /* ignore */ }
     persist()
+  }
+
+  /** 房间恢复在线后清理过期标记 */
+  function clearExpired(roomId: string) {
+    const expired = readExpiredSet()
+    if (!expired.has(roomId)) return
+    expired.delete(roomId)
+    try {
+      localStorage.setItem(EXPIRED_ROOMS_KEY, JSON.stringify([...expired]))
+    } catch { /* ignore */ }
   }
 
   // --- Legacy (v1) 只读访问 ---
@@ -261,6 +271,7 @@ export function useLocalRooms() {
     bumpRoomVersion,
     setRoomMode,
     markExpired,
+    clearExpired,
     getLegacyRoomIds,
     getLegacyRoomData,
     removeLegacyRoom,

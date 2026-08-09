@@ -196,7 +196,8 @@ const mergedRooms = computed(() => {
     })
   }
   for (const r of getAllRooms()) {
-    if (remoteIds.has(r.id) && r.mode === 'online') continue
+    // 远端已存在的房间以远端为准，本地缓存（含过期/旧状态）不再重复展示
+    if (remoteIds.has(r.id)) continue
     list.push({
       id: r.id,
       name: r.name,
