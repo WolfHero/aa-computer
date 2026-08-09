@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.1.1](https://github.com/WolfHero/aa-computer/compare/v1.1.0...v1.1.1) (2026-08-09)
+
+### Bug Fixes
+
+* 在线房间断网时回退本地缓存而非转为过期，过期房间可自动恢复 ([bd960ef](https://github.com/WolfHero/aa-computer/commit/bd960eff5e1bb149153fc46e3dde62b821d82405))
 ## [1.1.0](https://github.com/WolfHero/aa-computer/compare/v1.0.1...v1.1.0) (2026-08-09)
 
 ### Features
