@@ -7,13 +7,19 @@
     @update:show="emit('update:show', $event)"
     @select="onSelect"
   />
+
+  <CopyLinkDialog
+    v-model:show="showManualCopyLink"
+    :link="manualCopyLink"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from '@/utils/toast'
 import { useRemoteBills } from '@/composables/useRemoteBills'
+import CopyLinkDialog from '@/components/CopyLinkDialog.vue'
 import type { RoomMode, SortMode } from '@/lib/types'
 
 const props = withDefaults(defineProps<{
@@ -41,6 +47,9 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const { submitBills } = useRemoteBills()
+
+const showManualCopyLink = ref(false)
+const manualCopyLink = ref('')
 
 const actions = computed(() => {
   const sortAction = {
@@ -80,7 +89,8 @@ async function onSelect(action: { key: string }) {
         await navigator.clipboard.writeText(url)
         showToast('邀请链接已复制')
       } catch {
-        showToast('复制失败')
+        manualCopyLink.value = url
+        showManualCopyLink.value = true
       }
       break
     }

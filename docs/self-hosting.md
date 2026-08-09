@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | Postgres | 全部数据 + 业务逻辑（RPC、RLS、触发器） | 不能 |
 | PostgREST | REST API（`.from()` CRUD + `.rpc()`） | 不能 |
-| GoTrue (Auth) | 匿名登录、会话刷新（跨设备登录） | 不能 |
+| GoTrue (Auth) | 匿名登录、会话刷新（跨浏览器登录） | 不能 |
 | Kong | API 网关，客户端单一入口 | 不能（除非另写反向代理） |
 
 Storage、Realtime、Edge Functions、Studio 等模块本项目**均未使用**，本地 `supabase start` 会一起启动它们（所以有 10 个容器），自托管时不必部署。

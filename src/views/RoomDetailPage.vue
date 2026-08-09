@@ -42,7 +42,11 @@
           />
         </div>
 
-        <div v-if="mergedBills.length === 0 && !listLoading" class="empty-state">
+        <div v-if="mergedBills.length === 0 && (listLoading || billLoading)" class="bill-loading-state">
+          <van-loading type="spinner" size="24px" /> 加载中...
+        </div>
+
+        <div v-else-if="mergedBills.length === 0" class="empty-state">
           <van-icon name="bill-o" size="48" color="#c8c9cc" />
           <p>暂无账单记录</p>
         </div>
@@ -151,6 +155,7 @@ const members = ref<Pick<RoomMember, 'id' | 'name' | 'user_id'>[]>([])
 // Bill list state
 const syncedBills = ref<any[]>([])
 const listLoading = ref(false)
+const billLoading = ref(false)
 const listFinished = ref(false)
 const refreshing = ref(false)
 const remotePage = ref(0)
@@ -279,6 +284,7 @@ const mergedBills = computed(() => {
 })
 
 async function loadOnlineRoom(cached: LocalRoom | null) {
+  billLoading.value = true
   try {
     const remote = await getRoomById(roomId.value)
     offlineView.value = false
@@ -314,6 +320,8 @@ async function loadOnlineRoom(cached: LocalRoom | null) {
     }
     showToast('无权限访问')
     router.replace('/')
+  } finally {
+    billLoading.value = false
   }
 }
 
@@ -647,6 +655,7 @@ watch(() => route.params.id, () => {
   members.value = []
   syncedBills.value = []
   listLoading.value = false
+  billLoading.value = false
   listFinished.value = false
   hasMoreRemote.value = true
   remotePage.value = 0
@@ -687,6 +696,12 @@ watch(() => route.params.id, () => {
   text-align: center;
   padding: 60px 16px;
   color: var(--color-text-secondary);
+}
+.bill-loading-state {
+  text-align: center;
+  padding: 60px 16px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
 }
 .empty-state p {
   margin-top: 16px;

@@ -28,7 +28,6 @@
                 <span class="member-name">{{ m.name }}</span>
                 <span v-if="m.id === selfMemberId" class="self-badge">你</span>
                 <span v-if="roomMode === 'online' && m.user_id === room?.owner_id" class="owner-badge">房主</span>
-                <span v-if="m.user_id && roomMode === 'online'" class="self-badge">已绑定</span>
                 <span v-if="!m.user_id" class="unbound-badge">未绑定</span>
                 <span v-if="m.is_unsubmitted && roomMode === 'online'" class="unsubmitted-badge">未提交</span>
               </div>
@@ -148,6 +147,12 @@
         />
       </div>
     </van-dialog>
+
+    <CopyLinkDialog
+      v-model:show="showManualCopyLink"
+      :link="manualCopyLink"
+      :message="manualCopyMessage"
+    />
   </div>
 </template>
 
@@ -163,6 +168,7 @@ import { useLocalBackup } from '@/composables/useLocalBackup'
 import { useRoomLifecycle } from '@/composables/useRoomLifecycle'
 import { useAuth } from '@/composables/useAuth'
 import AppNavBar from '@/components/AppNavBar.vue'
+import CopyLinkDialog from '@/components/CopyLinkDialog.vue'
 import { formatDate } from '@/utils/format'
 import type { LocalRoom, RoomMember, RoomMode, RoomWithMembers } from '@/lib/types'
 
@@ -210,6 +216,11 @@ let editingMember: MemberInfo | null = null
 // Add member dialog
 const showAddMember = ref(false)
 const newMemberName = ref('')
+
+// Manual copy link dialog
+const showManualCopyLink = ref(false)
+const manualCopyLink = ref('')
+const manualCopyMessage = ref('复制失败，请手动选中并复制以下链接')
 
 function applyLocalRoom(local: LocalRoom) {
   roomMode.value = local.mode
@@ -317,7 +328,9 @@ async function copyInviteLink() {
     await navigator.clipboard.writeText(link)
     showToast('已复制公共邀请链接')
   } catch {
-    showToast('复制失败，请手动复制')
+    manualCopyLink.value = link
+    manualCopyMessage.value = '复制失败，请手动选中并复制以下公共邀请链接'
+    showManualCopyLink.value = true
   }
 }
 
@@ -459,13 +472,21 @@ async function onAddMemberConfirm(action: string): Promise<boolean> {
 
 async function onGenerateInviteLink(m: MemberInfo) {
   await ensureConverted(async () => {
+    let link: string
     try {
       const token = await generateInviteToken(m.id)
-      const link = `${window.location.origin}/invite/member?token=${token}`
+      link = `${window.location.origin}/invite/member?token=${token}`
+    } catch {
+      showToast('生成失败')
+      return
+    }
+    try {
       await navigator.clipboard.writeText(link)
       showToast(`已复制「${m.name}」的专属邀请链接`)
     } catch {
-      showToast('生成失败')
+      manualCopyLink.value = link
+      manualCopyMessage.value = `复制失败，请手动选中并复制「${m.name}」的专属邀请链接`
+      showManualCopyLink.value = true
     }
   })
 }

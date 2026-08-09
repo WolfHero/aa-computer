@@ -71,7 +71,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `useLocalAA` — pure TS replication of `calculate_aa` for local/expired rooms, cached in `aa_local_aa_v2`
 - `useLocalBackup` — local room export/import (`aa-local-room-v1` JSON)
 - `useRoomLifecycle` — rebuild expired room as local, migrate v1 cache to v2, delete all local room data
-- `useTheme` — 深色模式：localStorage `aa_theme` 持久化 + 首次跟随 `prefers-color-scheme`，驱动 `[data-theme='dark']` 与 Vant ConfigProvider
+- `useTheme` — 深色模式：三态（跟随系统/开启/关闭，默认跟随系统），localStorage `aa_theme` 持久化（`system`/`light`/`dark`），`system` 时响应 `prefers-color-scheme` 变化，驱动 `[data-theme='dark']` 与 Vant ConfigProvider
 
 ### Owner / Invite System
 - Local room creator is identified by `self_member_id`; conversion binds that member to the anonymous user and sets `rooms.owner_id`

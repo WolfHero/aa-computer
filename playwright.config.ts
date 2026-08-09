@@ -22,5 +22,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     actionTimeout: 10000,
+    // 复制邀请链接/登录凭证依赖 navigator.clipboard，默认 headless 无剪贴板权限会导致复制失败弹窗拦截后续操作
+    permissions: ['clipboard-read', 'clipboard-write'],
   },
 })

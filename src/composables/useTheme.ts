@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { STORAGE_KEYS } from '@/utils/constants'
 
+export type ThemeMode = 'light' | 'dark' | 'system'
 export type Theme = 'light' | 'dark'
 
 const THEME_META_COLORS: Record<Theme, string> = {
@@ -8,17 +9,22 @@ const THEME_META_COLORS: Record<Theme, string> = {
   dark: '#282c34',
 }
 
-function resolveInitialTheme(): Theme {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.THEME)
-    if (stored === 'light' || stored === 'dark') return stored
-  } catch {
-    // localStorage 不可用时回退到系统偏好
-  }
+function systemTheme(): Theme {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-const theme = ref<Theme>(resolveInitialTheme())
+function resolveInitialMode(): ThemeMode {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.THEME)
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+  } catch {
+    // localStorage 不可用时回退到跟随系统
+  }
+  return 'system'
+}
+
+const mode = ref<ThemeMode>(resolveInitialMode())
+const theme = ref<Theme>(mode.value === 'system' ? systemTheme() : mode.value)
 
 function applyTheme(next: Theme) {
   theme.value = next
@@ -32,35 +38,31 @@ function applyTheme(next: Theme) {
 export function useTheme() {
   const isDark = computed(() => theme.value === 'dark')
 
-  function setTheme(next: Theme) {
+  function setMode(next: ThemeMode) {
+    mode.value = next
     try {
       localStorage.setItem(STORAGE_KEYS.THEME, next)
     } catch {
       // 无法持久化时仅本次会话生效
     }
-    applyTheme(next)
+    applyTheme(next === 'system' ? systemTheme() : next)
   }
 
-  function toggleTheme() {
-    setTheme(isDark.value ? 'light' : 'dark')
+  /** 点击深色模式按钮轮换：跟随系统 → 开启 → 关闭 → 跟随系统 */
+  function cycleThemeMode() {
+    setMode(mode.value === 'system' ? 'dark' : mode.value === 'dark' ? 'light' : 'system')
   }
 
-  return { theme, isDark, setTheme, toggleTheme }
+  return { mode, theme, isDark, setMode, cycleThemeMode }
 }
 
 // 模块加载时立即应用，避免首帧闪烁；后续由 App.vue 的 ConfigProvider 驱动 Vant 深色类
 applyTheme(theme.value)
 
-// 用户未显式选择时跟随系统深色模式变化
+// 跟随系统模式下响应系统深色变化
 const darkMedia = window.matchMedia?.('(prefers-color-scheme: dark)')
 darkMedia?.addEventListener('change', (e) => {
-  let hasExplicitChoice = false
-  try {
-    hasExplicitChoice = !!localStorage.getItem(STORAGE_KEYS.THEME)
-  } catch {
-    // ignore
-  }
-  if (!hasExplicitChoice) {
+  if (mode.value === 'system') {
     applyTheme(e.matches ? 'dark' : 'light')
   }
 })

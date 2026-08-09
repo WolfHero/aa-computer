@@ -28,11 +28,12 @@
     </div>
 
     <PrivacyDialog v-model:show="showPrivacyDialog" />
+    <InAppHintDialog v-model:show="showInAppHint" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from '@/utils/toast'
 import { supabase } from '@/lib/supabaseClient'
@@ -43,6 +44,8 @@ import { useLocalRooms } from '@/composables/useLocalRooms'
 import { STORAGE_KEYS } from '@/utils/constants'
 import AppNavBar from '@/components/AppNavBar.vue'
 import PrivacyDialog from '@/components/PrivacyDialog.vue'
+import InAppHintDialog from '@/components/InAppHintDialog.vue'
+import { detectAppHintType } from '@/utils/device'
 
 interface RoomInfo {
   name: string
@@ -61,10 +64,19 @@ const name = ref('')
 const submitting = ref(false)
 const room = ref<RoomInfo | null>(null)
 const showPrivacyDialog = ref(false)
+const showInAppHint = ref(false)
+let pendingInAppHint = false
 
 onMounted(async () => {
   if (!localStorage.getItem(STORAGE_KEYS.PRIVACY_ACCEPTED)) {
     showPrivacyDialog.value = true
+  }
+  if (detectAppHintType() === 'inapp' && !localStorage.getItem(STORAGE_KEYS.IN_APP_HINT_SHOWN)) {
+    localStorage.setItem(STORAGE_KEYS.IN_APP_HINT_SHOWN, '1')
+    pendingInAppHint = true
+    if (localStorage.getItem(STORAGE_KEYS.PRIVACY_ACCEPTED)) {
+      showInAppHint.value = true
+    }
   }
   const roomId = route.query.room_id as string
   if (!roomId) return
@@ -78,6 +90,13 @@ onMounted(async () => {
   const { data } = await supabase.rpc('get_room_info', { p_room_id: roomId })
   if (data) {
     room.value = data as unknown as RoomInfo
+  }
+})
+
+watch(showPrivacyDialog, (v) => {
+  if (!v && pendingInAppHint) {
+    pendingInAppHint = false
+    showInAppHint.value = true
   }
 })
 

@@ -42,11 +42,12 @@
     </div>
 
     <PrivacyDialog v-model:show="showPrivacyDialog" />
+    <InAppHintDialog v-model:show="showInAppHint" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from '@/utils/toast'
 import { useAuth } from '@/composables/useAuth'
@@ -54,6 +55,8 @@ import { useRooms } from '@/composables/useRooms'
 import { STORAGE_KEYS } from '@/utils/constants'
 import AppNavBar from '@/components/AppNavBar.vue'
 import PrivacyDialog from '@/components/PrivacyDialog.vue'
+import InAppHintDialog from '@/components/InAppHintDialog.vue'
+import { detectAppHintType } from '@/utils/device'
 
 interface MemberInfo {
   id: string
@@ -76,10 +79,19 @@ const loading = ref(true)
 const error = ref('')
 const memberInfo = ref<MemberInfo | null>(null)
 const showPrivacyDialog = ref(false)
+const showInAppHint = ref(false)
+let pendingInAppHint = false
 
 onMounted(async () => {
   if (!localStorage.getItem(STORAGE_KEYS.PRIVACY_ACCEPTED)) {
     showPrivacyDialog.value = true
+  }
+  if (detectAppHintType() === 'inapp' && !localStorage.getItem(STORAGE_KEYS.IN_APP_HINT_SHOWN)) {
+    localStorage.setItem(STORAGE_KEYS.IN_APP_HINT_SHOWN, '1')
+    pendingInAppHint = true
+    if (localStorage.getItem(STORAGE_KEYS.PRIVACY_ACCEPTED)) {
+      showInAppHint.value = true
+    }
   }
 
   const token = route.query.token as string
@@ -105,6 +117,13 @@ onMounted(async () => {
     error.value = '邀请链接无效'
   } finally {
     loading.value = false
+  }
+})
+
+watch(showPrivacyDialog, (v) => {
+  if (!v && pendingInAppHint) {
+    pendingInAppHint = false
+    showInAppHint.value = true
   }
 })
 
