@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.1.0](https://github.com/WolfHero/aa-computer/compare/v1.0.1...v1.1.0) (2026-08-09)
+
+### Features
+
+* 邀请加入与跨浏览器登录体验优化，深色模式三态与账单加载态 ([e79c535](https://github.com/WolfHero/aa-computer/commit/e79c53590543d7f5a87b3acd7f6ec509f850d59c))
 ## [1.0.1](https://github.com/WolfHero/aa-computer/compare/v1.0.0...v1.0.1) (2026-08-07)
 
 ### Bug Fixes
